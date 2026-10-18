@@ -37,7 +37,7 @@ export async function readCompletion(response){
     for(const choice of chunk.choices||[]){if(typeof choice.delta?.content==='string')content+=choice.delta.content;if(choice.finish_reason)finish=choice.finish_reason;}
     if(content.length>400000)throw new Error('Model response exceeded the bounded document size');
   }
-  for await(const bytes of response.body){buffer+=decoder.decode(bytes,{stream:true});let end;while((end=buffer.indexOf('\n'))>=0){line(buffer.slice(0,end).replace(/\r$/,''));buffer=buffer.slice(end+1);}}
+  for await(const bytes of response.body){buffer+=decoder.decode(bytes,{stream:true});let end;while((end=buffer.indexOf('\n'))>=0){line(buffer.slice(0,end).replace(/\r$/,''));buffer=buffer.slice(end+1);if(done)break;}if(done)break;}
   buffer+=decoder.decode();if(buffer.trim())line(buffer.trim());
   if(!done&&!finish)throw new Error('Model stream interrupted; reservation retained');
   return {id,model,usage,choices:[{message:{content},finish_reason:finish}]};

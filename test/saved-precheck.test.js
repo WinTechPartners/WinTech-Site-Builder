@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {Store} from '../src/store.js';import {Worker} from '../src/worker.js';import {MODELS} from '../src/config.js';import {profile,researchFixture} from './fixtures.js';
+test('saved candidate passing 80 publishes before any paid creative calls',async t=>{
+ const store=new Store(':memory:');t.after(()=>store.db.close());const job=store.create('https://example.org/',MODELS.map(m=>m.id));job.profile=profile;job.research={...researchFixture,version:4,sources:researchFixture.sources.map(s=>({...s,emails:[]}))};job.assets=[];job.assetContractVersion=3;job.resumeCandidate='candidate-1.json';
+ const worker=new Worker(store,{getKey:()=>true,call:async()=>{throw Error('Unexpected paid call');}},{assets:async()=>[],direct:async()=>{throw Error('Unexpected art direction');},verify:async(_store,j)=>{j.latestScan={report:{scores:{overall:80}},issues:[],browser:{checks:Array.from({length:9},()=>({issues:[]}))}};}});
+ await worker.run(job);assert.equal(job.state,'provisional');assert.equal(store.budget(job.id).accounted,0);assert.equal(job.resumeCandidate,undefined);assert.ok(job.events.some(e=>e.detail.includes('without additional creative calls')));
+});

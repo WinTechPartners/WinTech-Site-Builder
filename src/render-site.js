@@ -99,6 +99,9 @@ export function renderSite(job,site,assets) {
     let body=sanitizeBody(page.body,job,assets,slugs);
     const logo=assets.find(a=>a.role==='logo');if(logo){const branded=load(body,null,false);const home=branded('header a').filter((i,e)=>branded(e).attr('href')===`/p/${job.token}/`).first();if(home.length)home.html(`<span class="studio-brand-label">${escape(job.profile.name)} home</span><img class="studio-brand-logo" src="${escape(logo.src)}" alt="${escape(job.profile.name)}" width="${logo.width||240}" height="${logo.height||72}" decoding="async">`);body=branded.html();}
     let $=load(body,null,false);
+    const heroAsset=assets.find(a=>a.synthetic&&a.role==='hero');
+    const heroSection=$('main>section').first();
+    if(page.slug===''&&heroAsset&&heroSection.find('h1').length&&!heroSection.find('img').length&&!site.css.includes(heroAsset.src))heroSection.append(`<figure class="studio-retained-art" style="grid-column:1/-1;clear:both;margin:24px 0 0;max-width:100%;overflow:hidden"><img src="${escape(heroAsset.src)}" alt="${escape(heroAsset.alt)}" width="${heroAsset.width||1536}" height="${heroAsset.height||1024}" loading="eager" decoding="async" style="width:100%;height:clamp(220px,32vw,420px);object-fit:cover"></figure>`);
     $('a.skip[href="#main"]').remove();
     $('form p,form small').each((_,el)=>{if(/preview only|demonstration contact form/i.test($(el).text()))$(el).addClass('preview-form-notice');});
     for(const fix of site.contrastCorrections||[]){if(fix.page!==(page.slug||'home')||!/^main(?: > [a-z][a-z0-9]*:nth-of-type\(\d+\))*$/.test(fix.selector)||!/^rgb\(\d{1,3},\d{1,3},\d{1,3}\)$/.test(fix.color))continue;$(fix.selector).each((_,el)=>$(el).attr('style',($(el).attr('style')||'')+`;color:${fix.color}!important`));}

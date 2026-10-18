@@ -14,6 +14,7 @@ import {publishApproved,autoReady} from './public-site.js';
 import {refinementMessages,applyRefinement} from './refine.js';
 import {reconstructionMessages,applyReconstruction} from './reconstruct.js';
 import {reusePaidProfile} from './reuse-profile.js';
+import {verifySavedDraft} from './free-verifier.js';
 
 export function shuffledModels(){const list=MODELS.map(m=>m.id);for(let i=list.length-1;i>0;i--){const j=crypto.randomInt(i+1);[list[i],list[j]]=[list[j],list[i]];}return list;}
 export function similarity(css,others){const tokens=s=>new Set(String(s).toLowerCase().match(/[a-z][a-z-]{2,}|#[a-f0-9]{3,8}|\d+(?:px|rem|vh|vw)/g)||[]);const a=tokens(css);let best=0;for(const other of others){const b=tokens(other);const union=new Set([...a,...b]);const intersection=[...a].filter(x=>b.has(x)).length;if(union.size)best=Math.max(best,intersection/union.size);}return best;}
@@ -38,7 +39,7 @@ export class Worker {
       job.repairFeedback=[...(job.repairFeedback||[]),'STRUCTURAL REDESIGN REQUIRED: Execute the NEW art direction, replacing the failed hero composition and weak section structure. Use the newly supplied role:hero image; older previous-concept imagery is reference only. Make substantial HTML structure changes, not just cosmetic CSS. Preserve source-backed copy and all working routes.'];this.store.save(job);
     }
   }
-  constructor(store,router,dependencies={}){this.store=store;this.router=router;this.busy=false;this.research=dependencies.research||research;this.assets=dependencies.assets||collectAssets;this.scan=dependencies.scan||scanSite;this.audit=dependencies.audit||auditClaims;this.direct=dependencies.direct||directDesign;this.review=dependencies.review||reviewDesign;}
+  constructor(store,router,dependencies={}){this.store=store;this.router=router;this.busy=false;this.research=dependencies.research||research;this.assets=dependencies.assets||collectAssets;this.scan=dependencies.scan||scanSite;this.audit=dependencies.audit||auditClaims;this.direct=dependencies.direct||directDesign;this.review=dependencies.review||reviewDesign;this.verify=dependencies.verify||verifySavedDraft;}
   async tick(){
     if(process.env.WORKER_ENABLED==='false')return;
     if(this.busy)return;
@@ -66,6 +67,12 @@ export class Worker {
     if(!job.assets){this.store.event(job,'Preparing company imagery','Using available original website images');job.assets=await this.assets(job,job.research);job.assetContractVersion=CONTENT_CONTRACT_VERSION;this.store.save(job);}
     if(job.assetContractVersion!==CONTENT_CONTRACT_VERSION){const fresh=await this.assets(job,job.research);job.assets=[...fresh,...job.assets.filter(a=>!fresh.some(f=>f.src===a.src))];job.assetContractVersion=CONTENT_CONTRACT_VERSION;this.store.save(job);}
     if(job.research.images?.some(a=>a.role==='logo')&&!job.assets.some(a=>a.role==='logo'))throw Error('ORIGINAL_LOGO_UNAVAILABLE: Source logo could not be downloaded. Paid art direction and generation deferred.');
+    if(job.resumeCandidate){
+      this.store.event(job,'Checking saved pages before paid work','Apply refreshed identity/assets and free browser repairs before considering any new creative call');
+      await this.verify(this.store,job);
+      job.resumeCandidate='candidate-free-verified.json';job.repairCandidate=job.resumeCandidate;job.repairFeedback=job.latestScan.issues;
+      if(autoReady(job)){job.state='provisional';job.preview=`${PREVIEW_ORIGIN}/p/${job.token}/`;delete job.resumeCandidate;this.store.event(job,'Scanner target passed',`WinTech ${job.latestScan.report.scores.overall}/100; saved paid pages reused without additional creative calls`);await publishApproved(this.store,job);return;}
+    }
     job.direction=job.direction||creativeDirection(job.url);this.store.save(job);
     const imageConfig=runwareConfig();
     this.checkpoint(job);

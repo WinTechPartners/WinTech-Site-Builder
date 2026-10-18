@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import path from 'node:path';import {Store} from '../src/store.js';import {renderSite} from '../src/render-site.js';import {profile,siteFixture} from './fixtures.js';
+test('saved text-only hero uses the already purchased image without duplicating authored imagery',t=>{
+ const store=new Store(':memory:');t.after(()=>store.db.close());const job=store.create('https://example.org/',[]);job.profile=profile;const site=structuredClone(siteFixture),asset={src:`/p/${job.token}/assets/1234567890abcdef.webp`,alt:'Conceptual engineering artwork',role:'hero',synthetic:true,width:1536,height:1024};
+ site.pages[0].body='<header>Company</header><main><section><h1>Managed IT</h1><p>Local support</p><a href="/#contact">Contact</a></section><section id="contact"><h2>Contact</h2></section></main>';
+ const first=renderSite(job,site,[asset]);assert.match(fs.readFileSync(path.join(first.dir,'index.html'),'utf8'),/studio-retained-art/);site.pages[0].body=site.pages[0].body.replace('<h1',`<img src="${asset.src}" alt="Existing illustration" width="1536" height="1024"><h1`);const second=renderSite(job,site,[asset]);assert.doesNotMatch(fs.readFileSync(path.join(second.dir,'index.html'),'utf8'),/class="studio-retained-art"/);
+});
