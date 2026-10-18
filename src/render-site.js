@@ -41,12 +41,17 @@ export function sanitizeBody(body,job,assets,slugs) {
           const local=new URL(href,'https://preview.invalid');const slug=local.pathname.replace(/^\/|\/$/g,'');
           if(slugs.includes(slug))node.attr('href',`${base}/${slug}${local.hash}`);else node.removeAttr('href');
         }else if(href.startsWith('mailto:') && job.profile.email && href.slice(7)===job.profile.email){}
-        else if(href.startsWith('tel:') && job.profile.phone && href.replace(/\D/g,'')===job.profile.phone.replace(/\D/g,'')){}
+        else if(href.startsWith('tel:') && verifiedTelephone(href,job)){}
         else {const u=new URL(href);const source=new URL(job.profile.sourceUrl); if(u.protocol!=='https:' && u.protocol!=='http:')throw new Error();if(u.hostname!==source.hostname && !job.profile.socialLinks.some(s=>new URL(s).hostname===u.hostname))throw new Error();node.attr('rel','noopener noreferrer').attr('target','_blank');}
       }catch{node.removeAttr('href');}
     }
   });
   return $.html();
+}
+export function verifiedTelephone(href,job){
+ const number=href.replace(/\D/g,''),normalize=s=>String(s||'').replace(/\D/g,'').replace(/^1(?=\d{10}$)/,'');if(number.length<10||number.length>15)return false;
+ if(job.profile.phone&&normalize(number)===normalize(job.profile.phone))return true;
+ return (job.research?.sources||[]).some(s=>String(s.text||'').replace(/[\s().+\-]/g,'').includes(normalize(number)));
 }
 export async function collectAssets(job,research,fetcher=safeFetch) {
   const dir=path.join(DATA,'previews',job.token,'assets');fs.mkdirSync(dir,{recursive:true});

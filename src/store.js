@@ -50,6 +50,7 @@ export class Store {
   }
   uncertain(id, reason) { this.db.prepare('UPDATE calls SET state=?,detail=? WHERE id=?').run('uncertain', JSON.stringify({ reason }), id); }
   recover() {
+    for(const job of this.list())if(job.freeVerification?.state==='running'){job.freeVerification={...job.freeVerification,state:'interrupted',error:'Free verification interrupted by restart; safe to resume without model calls'};this.save(job);}
     this.db.prepare("UPDATE calls SET state='uncertain',detail='\"Interrupted request: reservation retained\"' WHERE state='pending'").run();
     for (const job of this.list()) if (['researching','generating','checking','repairing'].includes(job.state)) {
       job.state = 'failed'; job.error = 'Interrupted by restart. Any uncertain charges remain reserved. Retry continues the same cumulative prospect ledger.'; this.save(job);
