@@ -47,7 +47,7 @@ export function createServers(options={}){
       if(!permittedHost(req))return send(res,403,{error:'Host not permitted'});
       const u=new URL(req.url,'http://localhost');
       if(u.pathname==='/ws'||u.pathname.startsWith('/ws/')||u.pathname.startsWith('/p/')||u.pathname.startsWith('/fonts/')||u.pathname==='/preview-controls.js')return preview.emit('request',req,res);
-      if(u.pathname==='/api/health')return send(res,200,{ok:true,keyConfigured:!!router.getKey(),budgetCap:0.5,previewOrigin:PREVIEW_ORIGIN,publicPreview:/^https:\/\//.test(PREVIEW_ORIGIN),models:MODELS,publicSiteOrigin:publicOrigin(),publicPublishing:process.env.PUBLIC_PUBLISH_ENABLED==='true'});
+      if(u.pathname==='/api/health')return send(res,200,{ok:true,paidCallsEnabled:process.env.MODEL_CALLS_ENABLED!=='false',workerEnabled:process.env.WORKER_ENABLED!=='false',scannerPassMark:80,keyConfigured:!!router.getKey(),budgetCap:0.5,previewOrigin:PREVIEW_ORIGIN,publicPreview:/^https:\/\//.test(PREVIEW_ORIGIN),models:MODELS,publicSiteOrigin:publicOrigin(),publicPublishing:process.env.PUBLIC_PUBLISH_ENABLED==='true'});
       if(u.pathname.startsWith('/api/')){
         if(req.headers.authorization!==`Bearer ${localAdminToken}`)return send(res,401,{error:'Management access required'});
         if(req.headers.origin && req.headers.origin!==`http://${req.headers.host}` && req.headers.origin!==`https://${req.headers.host}`)return send(res,403,{error:'Cross-origin management request blocked'});

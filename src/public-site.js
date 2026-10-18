@@ -84,6 +84,9 @@ export class PublicPublisher{
    if(process.env.PUBLIC_PUBLISH_MODE==='gateway'){
     let staged=stagePublicCatalog(this.store,{origin:this.origin});
     for(const job of this.store.list().filter(ready)){staged=stagePublicCatalog(this.store,{origin:this.origin,publishJob:job});job.publication={state:'live',kind:'checked',url:this.origin+'/ws/'+this.store.publicSlug(job.id),publishedAt:new Date().toISOString()};this.store.save(job);}
+    for(const job of this.store.list().filter(j=>j.publication?.state==='pending'&&j.publication.kind==='draft')){
+      try{const r=await this.fetch(job.publication.url,{signal:AbortSignal.timeout(8000)});if(r.ok&&(await r.text()).includes('content="'+job.publication.version+'"')){job.publication={...job.publication,state:'live',publishedAt:new Date().toISOString()};job.error=null;this.store.event(job,'Public preview ready',job.publication.url);}}catch{}
+    }
     this.store.setting('publicPublicationError','');return;
    }
    if(!this.checkout||!fs.existsSync(path.join(this.checkout,'app','public','serve.json')))throw new Error('Configure PUBLIC_SITE_CHECKOUT to the verified website checkout');
