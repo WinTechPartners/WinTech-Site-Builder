@@ -23,11 +23,11 @@ These are request-level maximum acceptable provider rates, not a promise that a 
 
 The SQLite ledger reserves a conservative maximum before every inference request: UTF-8 prompt bytes plus 8,192 framing tokens, priced at the input ceiling, plus the requested maximum completion priced at the output ceiling. Research, direction, generation and copy calls use text. Visual review adds up to three bounded low-detail JPEG screenshots, with another 4,096 input tokens reserved per image. No calls use tools, paid search or plugins. OpenRouter provider price constraints, zero per-request fee, parameter support, output limit and disabled provider fallback accompany every request. Prompts plus completions are kept below 95,000 tokens on this conservative calculation to avoid expensive long-context tiers.
 
-The model allowance is **500,000 microdollars per company ($0.50)**. Reservations are atomic. Explicit provider-reported total costs settle them downward; missing billing information, failed requests, timeouts and interruptions retain the full reservation. Retries share the ledger. A reported charge above the reserved maximum records the anomaly and stops the job. This is application-side control based on OpenRouter honoring its documented pricing/output constraints; third-party billing itself cannot be controlled by local code. Account fees, hosting and any separately purchased services are outside this inference cap. The app does not purchase images or use paid enrichment.
+The model allowance is **500,000 microdollars per company ($0.50)**. Reservations are atomic. Explicit provider-reported total costs settle them downward; missing billing information, failed requests, timeouts and interruptions retain the full reservation. Retries share the ledger. A reported charge above the reserved maximum records the anomaly and stops the job. This is application-side control based on OpenRouter honoring its documented pricing/output constraints; third-party billing itself cannot be controlled by local code. Account fees, hosting and any separately purchased services are outside this inference cap. Configured Runware artwork shares the same prospect ledger. The app does not use paid enrichment.
 
 ## Research and source boundaries
 
-The crawler reads the homepage and at most six selected company pages; linked public social profiles and up to two discovered profiles require an official link or exact company-domain backlink. Public Bing/Google results are discovery leads, never factual proof. Login gates, blocked searches and missing pages remain explicit coverage gaps. No credentials are used to bypass a platform's access restrictions. Source excerpts and exact supporting quotations remain with each job. At least three verifiable source passages are required.
+The crawler reads the homepage and at most eight selected company pages; linked public social profiles and up to two discovered profiles require an official link or exact company-domain backlink. Public Bing/Google results are discovery leads, never factual proof. Login gates, blocked searches and missing pages remain explicit coverage gaps. No credentials are used to bypass a platform's access restrictions. Source excerpts and exact supporting quotations remain with each job. At least three verifiable source passages are required.
 
 Source images are downloaded with network/address checks and converted to smaller WebP assets when the browser is available. Original company photography remains separate from clearly conceptual generated artwork; no fabricated evidence or badges are added. All downloaded assets originate from public company pages; customer approval/licensing still belongs in the later paid production process.
 
@@ -35,7 +35,7 @@ Source images are downloaded with network/address checks and converted to smalle
 
 Each model entry also has a `reasoning` setting. The supplied configuration disables reasoning for optional-reasoning builders and retains low reasoning for the mandatory-reasoning model. Responses stream with final usage reporting, avoiding long silent-response header timeouts. `BUILD_MAX_TOKENS` and `MODEL_TIMEOUT_MS` are configurable in `.env`; their reservations still fall under the immutable $0.50 per-company cap.
 
-`vendor/scanner/scanner.cjs` is copied from the user's WinTech-Site-Scanner. The scoring functions are unchanged. The only adaptations are the CommonJS `.cjs` render import and exporting its existing HTML-signal extractor. `render.cjs` is the original renderer. Upstream scanner SHA-256 at import: `36AC63671073D45A5767BEC55CE40166E2537D497EA6BE950184A24502B808B9`.
+`vendor/scanner/scanner.cjs` is copied from the user's WinTech-Site-Scanner. Analytics is excluded from the raw overall score. Applicable local readiness is reported separately from pending HTTPS/Lighthouse measurements. The only adaptations are the CommonJS `.cjs` render import and exporting its existing HTML-signal extractor. `render.cjs` is the original renderer. Upstream scanner SHA-256 at import: `36AC63671073D45A5767BEC55CE40166E2537D497EA6BE950184A24502B808B9`.
 
 Generation includes static HTML, metadata, one H1, ordered headings, semantic landmarks, sourced organization and visible FAQ schema, meaningful internal links, contact details when verified, image descriptions/dimensions and responsive CSS. Hosting supplies security headers, robots.txt, sitemap.xml, llms.txt and security.txt. Previews have five pages: home, services, about, and operator-specific preview privacy and terms pages. The latter do not pretend to be approved customer legal policies.
 
@@ -43,10 +43,10 @@ Checks run before any link is marked ready:
 
 - All three business pages pass native HTML checks and desktop/mobile rendering at 1440px and 390px.
 - No horizontal overflow, broken images, missing anchors, unlabelled forms or detected low solid-background text contrast. Gradient backgrounds need Lighthouse for broader validation.
-- Homepage native scanner SEO >=90, AEO >=75 and content >=70.
+- Applicable local readiness >=80, with hard failures for broken HTML, links, images and measured readability. No word-count, HowTo, demo-form, tracking or translation quota.
 - Independent copy check flags no unsupported claims or material voice departures.
 - CSS-token similarity to earlier successful previews <=0.90. This is a cheap similarity heuristic, not a guarantee of visual originality.
-- On public HTTPS: actual WinTech overall >=85 and SEO, mobile performance, security, accessibility and best practices >=90.
+- External WinTech scans are explicitly separate from free local repair cycles. Their accepted overall pass mark is 80.
 
 The first build's score is saved separately from repaired results. Privacy, analytics and language scores are reported honestly: no fake translations, unnecessary pixels, sham consent or irrelevant HowTo schema is inserted to inflate them. The scanner rewards these optional features, so not every legitimate preview can reach 95 overall.
 
@@ -144,3 +144,11 @@ ProMAS fix propagation audit
 - A report citing only nonexistent generated wording can use the configured fallback once; real factual rejections remain failures. Existing bounded consistency verification keeps raw contradictory reports and every confirmed blocker.
 - Verified location supporting quotes survive revalidation, preserving partner-list locations.
 - Activation verification: 80 full offline regression tests passed, plus targeted reviewer-recovery and pre-review omission tests. Runtime health confirms automatic WWW publishing is enabled and the default prospect cap remains $0.50. Existing ProMAS total remains $0.837811; this propagation audit made no live model or image calls.
+
+## Railway deployment and migration
+
+The Docker service runs Node 24 and Linux Chromium, with `/data` on a persistent volume. GitHub contains code, tests and licensed fonts only; `.env`, SQLite, paid responses and prospect assets are excluded. The protected one-time migration endpoint accepts a path-checked archive only into an empty store, then restarts. Its authenticated manifest compares all prospect budgets, call totals and SHA-256 hashes of paid responses. Disable `MIGRATION_IMPORT_ENABLED` after import.
+
+`MODEL_CALLS_ENABLED=false` blocks new provider requests before reservations while permitting exact cached response replay. `WORKER_ENABLED=false` pauses processing during migration. Credentials and model IDs are configured in Railway variables. Browser verification loads byte-verified served HTML and local assets into Chromium with bounded waits, measures 390/768/1440px, and runs no external scan or model request. `/api/jobs/:id/verify` verifies saved pages for free.
+
+The main website gateway can forward only public `/ws/` GET/HEAD routes using `PUBLIC_PREVIEW_UPSTREAM`. Public previews and their list can update directly from the persistent store without rebuilding the main website. Automatic publication retains source/content/design gates. An explicitly user-selected draft may be published after browser checks and raw scanner >=80 using a fingerprint tied to the exact saved HTML; this does not mark missing model reviews as passed.

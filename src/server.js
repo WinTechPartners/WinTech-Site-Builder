@@ -51,7 +51,7 @@ export function createServers(options={}){
       if(u.pathname.startsWith('/api/')){
         if(req.headers.authorization!==`Bearer ${localAdminToken}`)return send(res,401,{error:'Management access required'});
         if(req.headers.origin && req.headers.origin!==`http://${req.headers.host}` && req.headers.origin!==`https://${req.headers.host}`)return send(res,403,{error:'Cross-origin management request blocked'});
-        if(req.method==='POST'&&u.pathname==='/api/migration'){migrationActive=true;try{const result=await importMigration(req,store);send(res,200,result);setTimeout(()=>process.exit(0),1000);return;}catch(error){migrationActive=false;throw error;}}
+        if(req.method==='POST'&&u.pathname==='/api/migration'){migrationActive=true;try{const result=await importMigration(req,store);send(res,200,result);setTimeout(()=>process.exit(75),1000);return;}catch(error){migrationActive=false;throw error;}}
         if(req.method==='GET'&&u.pathname==='/api/migration-manifest'){
           const dir=path.join(DATA,'model-results');const paidResponses=fs.existsSync(dir)?fs.readdirSync(dir).filter(n=>n.endsWith('.json')).map(name=>({name,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(dir,name))).digest('hex')})):[];
           return send(res,200,{jobs:store.list().map(j=>({id:j.id,url:j.url,budget:store.budget(j.id).accounted,cap:store.budget(j.id).cap})),calls:store.db.prepare('SELECT count(*) n,sum(charged) charged FROM calls').get(),paidResponses,paidCallsEnabled:process.env.MODEL_CALLS_ENABLED!=='false'});
