@@ -31,7 +31,9 @@ export class Store {
     return { cap: cap/1e6, accounted: r.charged / 1e6, reserved: r.reserved / 1e6, remaining: Math.max(0, (cap - r.charged) / 1e6), calls: this.db.prepare('SELECT id,model,purpose,reserved,charged,state,detail,created FROM calls WHERE job=?').all(id) };
   }
   cap(id){const cap=this.get(id)?.budgetCapMicro??BUDGET_MICRO;if(!Number.isSafeInteger(cap)||cap<1000||cap>900000)throw new Error('Invalid prospect budget cap');return cap;}
+  paidEligible(job){const cutoff=process.env.PAID_GENERATION_NEW_URLS_AFTER;return !cutoff||(Number.isFinite(Date.parse(cutoff))&&Date.parse(job?.created)>=Date.parse(cutoff));}
   reserve(job, model, purpose, micro) {
+    if(!this.paidEligible(this.get(job)))throw new Error('EXISTING_PROSPECT_PROTECTED: New paid calls are enabled only for newly submitted URLs; saved work remains available');
     if (!Number.isSafeInteger(micro) || micro <= 0) throw new Error('Invalid budget reservation');
     this.db.exec('BEGIN IMMEDIATE');
     try {

@@ -41,7 +41,7 @@ export class Worker {
   async tick(){
     if(process.env.WORKER_ENABLED==='false')return;
     if(this.busy)return;
-    const imageConfig=runwareConfig();const job=this.store.list().reverse().find(j=>j.state==='queued'||(j.state==='awaiting_key'&&this.router.getKey())||(j.state==='awaiting_images'&&imageConfig.key&&imageConfig.model));if(!job)return;
+    const imageConfig=runwareConfig();const job=this.store.list().reverse().find(j=>this.store.paidEligible(j)&&(j.state==='queued'||(j.state==='awaiting_key'&&this.router.getKey())||(j.state==='awaiting_images'&&imageConfig.key&&imageConfig.model)));if(!job)return;
     this.busy=true;
     try{await this.run(job);}catch(e){job.state=job.cancelRequested||/CANCELLED/.test(e.message)?'cancelled':'failed';job.error=e.message;this.store.event(job,job.state==='cancelled'?'Stopped by you':'Stopped automatically',e.message);}finally{this.busy=false;this.currentJob=null;}
   }

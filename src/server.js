@@ -93,6 +93,7 @@ export function createServers(options={}){
           if(req.method==='GET'&&!match[2])return send(res,200,publicJob(job,store));
           if(req.method==='POST'&&match[2]==='/stop'){if(!['queued','awaiting_key','awaiting_images','researching','generating','checking','repairing'].includes(job.state))return send(res,409,{error:'This job is not running'});return send(res,202,publicJob(worker.cancel(job.id),store));}
           if(req.method==='POST'&&match[2]==='/retry'){
+            if(!store.paidEligible(job))return send(res,409,{error:'Existing prospect protected from new paid calls. Its saved preview can be verified and published without regeneration.'});
             if(!['failed','cancelled'].includes(job.state))return send(res,409,{error:'Only a stopped job can be retried'});
             if(store.budget(job.id).remaining<0.015)return send(res,409,{error:'Remaining prospect budget is too small for another attempt'});
             job.state='queued';job.error=null;store.save(job);worker.tick();return send(res,202,publicJob(job,store));
