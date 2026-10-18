@@ -13,6 +13,7 @@ import { runwareConfig,generateHero } from './runware.js';
 import {publishApproved,autoReady} from './public-site.js';
 import {refinementMessages,applyRefinement} from './refine.js';
 import {reconstructionMessages,applyReconstruction} from './reconstruct.js';
+import {reusePaidProfile} from './reuse-profile.js';
 
 export function shuffledModels(){const list=MODELS.map(m=>m.id);for(let i=list.length-1;i>0;i--){const j=crypto.randomInt(i+1);[list[i],list[j]]=[list[j],list[i]];}return list;}
 export function similarity(css,others){const tokens=s=>new Set(String(s).toLowerCase().match(/[a-z][a-z-]{2,}|#[a-f0-9]{3,8}|\d+(?:px|rem|vh|vw)/g)||[]);const a=tokens(css);let best=0;for(const other of others){const b=tokens(other);const union=new Set([...a,...b]);const intersection=[...a].filter(x=>b.has(x)).length;if(union.size)best=Math.max(best,intersection/union.size);}return best;}
@@ -47,12 +48,14 @@ export class Worker {
   }
   async run(job){
     const start=Date.now();this.currentJob=job;job.cancelRequested=false;this.router.resume?.(job.id);job.error=null;job.preview=null;
+    const previousProfile=job.profile;
     if(job.research&&(job.research.version!==4||!Array.isArray(job.research.sources?.[0]?.emails))){job.research=null;job.profile=null;job.assetContractVersion=null;this.store.event(job,'Refreshing source coverage','Refreshing original identity, vendor, service and industry evidence. Existing paid artwork and cumulative cost ledger retained.');}
     job.modelOrder=job.modelOrder.filter(id=>MODELS.some(m=>m.id===id));
     for(const model of MODELS)if(!job.modelOrder.includes(model.id))job.modelOrder.push(model.id);
     if(!job.research){job.state='researching';this.store.event(job,'Researching the company','Reading public company pages, profiles and search results');job.research=await this.research(job.url,p=>this.store.event(job,'Researching the company',p));this.store.save(job);}
     const unread=(job.research.corePages||[]).filter(p=>p.essential&&!p.read);if(unread.length)throw Error('SOURCE_COVERAGE_INCOMPLETE: Required company pages could not be read; no generation or image charge started. '+unread.map(p=>p.url).join(', '));
     if(!this.router.getKey()){job.state='awaiting_key';this.store.event(job,'Research saved — waiting for OpenRouter connection','Add the key once in Setup. Generation will continue automatically. No model credits spent.');return;}
+    if(!job.profile){const reused=reusePaidProfile(this.store,job,previousProfile);if(reused){job.profile=reused;this.store.event(job,'Reusing verified company brief','Original paid facts validated against refreshed sources; vendor, service and industry inventories updated without another model call');}}
     this.checkpoint(job);
     if(!job.profile){
       job.state='generating';this.store.event(job,'Preserving the company voice','Extracting source-backed facts and exact phrases');

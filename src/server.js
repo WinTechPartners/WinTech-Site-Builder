@@ -10,6 +10,7 @@ import { Worker,shuffledModels } from './worker.js';
 import { normalizeTarget } from './network.js';
 import { securityHeaders,closeBrowser } from './checks.js';
 import {verifySavedDraft} from './free-verifier.js';
+import {validateProfile} from './generate.js';
 import {draftFingerprint} from './public-site.js';
 import {importMigration} from './migration.js';
 import {verifyFontAssets} from './font-assets.js';
@@ -96,6 +97,8 @@ export function createServers(options={}){
             if(!store.paidEligible(job))return send(res,409,{error:'Existing prospect protected from new paid calls. Its saved preview can be verified and published without regeneration.'});
             if(!['failed','cancelled','queued_update'].includes(job.state))return send(res,409,{error:'Only a stopped job can be retried'});
             if(store.budget(job.id).remaining<0.015)return send(res,409,{error:'Remaining prospect budget is too small for another attempt'});
+            const retryOptions=await readBody(req);
+            if(retryOptions.retainedProfile)job.profile=validateProfile(retryOptions.retainedProfile,job.research);
             const saved=path.join(DATA,'previews',job.token),candidates=fs.existsSync(saved)?fs.readdirSync(saved).filter(n=>/^candidate-\d+\.json$/.test(n)).sort((a,b)=>Number(b.match(/\d+/)[0])-Number(a.match(/\d+/)[0])):[];
             const candidate=fs.existsSync(path.join(saved,'candidate-free-verified.json'))?'candidate-free-verified.json':job.repairCandidate||candidates[0];
             if(candidate){job.resumeCandidate=candidate;job.repairCandidate=candidate;job.repairFeedback=job.latestScan?.issues?.length?job.latestScan.issues:null;}
