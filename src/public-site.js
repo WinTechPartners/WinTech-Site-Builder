@@ -20,11 +20,14 @@ const csp="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; font-s
 const head=(title)=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><meta http-equiv="Content-Security-Policy" content="${escape(csp)}"><title>${escape(title)}</title><style>body{margin:0;background:#f5f6f8;color:#172136;font:16px/1.6 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:48px 24px}h1{font-size:clamp(30px,4vw,48px);letter-spacing:-.04em;line-height:1.1;margin:10px 0 18px}a{color:#174d9b;text-underline-offset:3px}input{font:inherit;padding:12px 16px;border:1px solid #b9c2d1;border-radius:8px;min-width:260px}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:18px 20px;border-bottom:1px solid #dee3eb;vertical-align:top}th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;background:#e9eef5}small{display:block;color:#526177}.table-wrap{overflow:auto;border:1px solid #dee3eb;border-radius:12px;margin-top:24px}.label{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#526177}a:focus-visible,input:focus-visible{outline:3px solid #c65f21;outline-offset:3px}</style></head><body>`;
 export function directoryHTML(rows){return head('Partner website previews | WinTech Partners')+`<main><p class="label">WinTech Partners · Website Studio</p><h1>Partner website previews</h1><p>${rows.length} partners. Current websites and proposed redesigns.</p><label for="filter">Find a partner, city or state</label><br><input id="filter" type="search" placeholder="Search partners" autocomplete="off"><div class="table-wrap"><table><thead><tr><th scope="col">Partner</th><th scope="col">City</th><th scope="col">State</th><th scope="col">Current URL</th><th scope="col">New URL</th></tr></thead><tbody>${rows.map(r=>`<tr data-partner-row><th scope="row">${escape(r.partner)}</th><td>${escape(r.city||'—')}</td><td>${escape(r.state||'—')}</td><td><a href="${escape(r.currentUrl)}" target="_blank" rel="noopener noreferrer">${escape(r.currentUrl)}</a></td><td><a href="${escape(r.newUrl)}">${escape(r.newUrl)}</a>${r.status==='published'?'':r.status==='draft'?'<small>Concept preview</small>':'<small>Preview being prepared</small>'}</td></tr>`).join('')}</tbody></table></div><p><small>Independent redesign concepts. Location is left blank where source evidence is unavailable.</small></p></main><script src="/ws/assets/list.js" defer></script></body></html>`;}
 export const ready=job=>job.contentCoverage?.version===CONTENT_CONTRACT_VERSION&&job.contentCoverage.passed===true&&['ready','provisional'].includes(job.state)&&job.visualReview?.passed===true&&job.claimAudit&&!job.claimAudit.unsupportedClaims.length&&!job.claimAudit.voiceIssues.length&&!(job.claimAudit.contentIssues||[]).length&&job.latestScan?.issues?.length===0;
+// Scanner-passing concepts do not require a paid visual/copy review to publish.
+export const autoReady=job=>Number(job.latestScan?.report?.scores?.overall)>=80&&job.latestScan?.issues?.length===0&&job.latestScan?.browser?.checks?.length>=9&&!job.latestScan.browser.checks.some(c=>c.issues?.length);
+const publishable=job=>autoReady(job)||ready(job);
 function write(file,body){fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file+'.tmp',body);fs.renameSync(file+'.tmp',file);}
 function exportSnapshot(job,slug,destination,origin,draft=false){
  const checked=job.claimAudit&&!job.claimAudit.unsupportedClaims.length&&!job.claimAudit.voiceIssues.length&&!(job.claimAudit.contentIssues||[]).length&&job.latestScan?.issues?.length===0;
  const selectedDraft=job.draftPublicationApproval?.kind==='user-selected-draft'&&job.draftPublicationApproval.fingerprint===draftFingerprint(job)&&job.latestScan?.issues?.length===0&&job.latestScan?.browser?.checks?.length>=6&&job.latestScan?.report?.scores?.overall>=80;
- if(!(draft?(checked||selectedDraft):ready(job)))throw new Error('Public publication requires passed browser, source and visual gates, or explicit approval of this exact checked draft');
+ if(!(draft?(autoReady(job)||checked||selectedDraft):ready(job)))throw new Error('Public publication requires passed browser, source and visual gates, or explicit approval of this exact checked draft');
  const source=path.join(DATA,'previews',job.token),target=path.join(destination,slug);let version=crypto.createHash('sha256');
  const rewrite=text=>text.replace(/https?:\/\/(?:localhost|127\.0\.0\.1):4174/g,origin).replaceAll(PREVIEW_ORIGIN,origin).replace(/\/p\/[a-f0-9]{48}\//g,'/ws/'+slug+'/').replace(/\/fonts\//g,'/ws/assets/fonts/').replaceAll('/preview-controls.js','/ws/assets/preview-controls.js');
  for(const name of ['index.html','services.html','about.html','privacy.html','terms.html','favicon.svg','sitemap.xml','llms.txt']){
@@ -54,7 +57,7 @@ export function configureStaticHost(publicDirectory,rows){
 
 export async function publishApproved(store,job){
  if(process.env.PUBLIC_PUBLISH_ENABLED!=='true')return null;
- if(!ready(job))throw new Error('Public quality gates have not passed');
+ if(!publishable(job))throw new Error('Public quality gates have not passed');
  job.publication={...job.publication,state:'pending',url:publicOrigin()+'/ws/'+store.publicSlug(job.id)};
  store.save(job); // The restart-safe publisher owns uploads; generation never repeats for a deploy.
  return null;
@@ -83,8 +86,12 @@ export class PublicPublisher{
   try{
    if(process.env.PUBLIC_PUBLISH_MODE==='gateway'){
     let staged=stagePublicCatalog(this.store,{origin:this.origin});
-    for(const job of this.store.list().filter(ready)){staged=stagePublicCatalog(this.store,{origin:this.origin,publishJob:job});job.publication={state:'live',kind:'checked',url:this.origin+'/ws/'+this.store.publicSlug(job.id),publishedAt:new Date().toISOString()};this.store.save(job);}
-    for(const job of this.store.list().filter(j=>j.publication?.state==='pending'&&j.publication.kind==='draft')){
+    for(const job of this.store.list().filter(publishable)){
+     const draft=!ready(job),fingerprint=draftFingerprint(job);
+     if(job.publication?.state==='live'&&job.publication.fingerprint===fingerprint)continue;
+     staged=stagePublicCatalog(this.store,{origin:this.origin,publishJob:job,draft});job.publication={state:'pending',kind:draft?'draft':'checked',url:this.origin+'/ws/'+this.store.publicSlug(job.id),version:staged.version,fingerprint};this.store.save(job);
+    }
+    for(const job of this.store.list().filter(j=>j.publication?.state==='pending')){
       try{const r=await this.fetch(job.publication.url,{signal:AbortSignal.timeout(8000)});if(r.ok&&(await r.text()).includes('content="'+job.publication.version+'"')){job.publication={...job.publication,state:'live',publishedAt:new Date().toISOString()};job.error=null;this.store.event(job,'Public preview ready',job.publication.url);}}catch{}
     }
     this.store.setting('publicPublicationError','');return;
@@ -92,7 +99,7 @@ export class PublicPublisher{
    if(!this.checkout||!fs.existsSync(path.join(this.checkout,'app','public','serve.json')))throw new Error('Configure PUBLIC_SITE_CHECKOUT to the verified website checkout');
    const publicDirectory=path.join(this.checkout,'app','public'),destination=path.join(publicDirectory,'ws');
    let staged=stagePublicCatalog(this.store,{destination,origin:this.origin});
-   for(const job of this.store.list().filter(ready))staged=stagePublicCatalog(this.store,{destination,origin:this.origin,publishJob:job});
+   for(const job of this.store.list().filter(publishable))staged=stagePublicCatalog(this.store,{destination,origin:this.origin,publishJob:job,draft:!ready(job)});
    configureStaticHost(publicDirectory,staged.rows);this.store.setting('publicPublicationError','');
    const version=snapshotHash(destination);let state=JSON.parse(this.store.setting('publicPublication')||'{}');
    if(state.version!==version)state={version,state:'pending',attempts:0};

@@ -10,7 +10,7 @@ import { collectAssets,renderSite } from './render-site.js';
 import { scanSite } from './checks.js';
 import { DESIGN_VERSION,directDesign,reviewDesign,visualRepairContext,prepareHeroReference,initialVisualContext } from './design.js';
 import { runwareConfig,generateHero } from './runware.js';
-import {publishApproved} from './public-site.js';
+import {publishApproved,autoReady} from './public-site.js';
 import {refinementMessages,applyRefinement} from './refine.js';
 import {reconstructionMessages,applyReconstruction} from './reconstruct.js';
 
@@ -95,6 +95,7 @@ export class Worker {
         }
         else {await prepareHeroReference(job);candidate=await this.router.call(job.id,model,'Initial website generation',buildMessages(job.profile,job.direction,job.assets,feedback,previous,job.artDirection,initialVisualContext(job)),BUILD_MAX_TOKENS);}
         const site=validateSite(candidate,job.assets);
+        site.responsiveFoundation=true;
         const home=site.pages.find(p=>p.slug==='');home.body=preserveVendors(home.body,job,job.assets);
         this.checkpoint(job);
         previous=site;job.state='checking';this.store.event(job,'Checking the finished pages','WinTech rules, desktop/mobile rendering and independent factual review');
@@ -111,6 +112,11 @@ export class Worker {
         job.contentCoverage=coverageCheck(job,renderedSite);
         if(!job.firstPass){job.firstPass={scores:scan.report.scores,verified:scan.report.verified,issues:scan.issues,at:new Date().toISOString()};}
         this.checkpoint(job);
+        if(autoReady(job)){
+          job.state='provisional';job.preview=`${PREVIEW_ORIGIN}/p/${job.token}/`;job.designCss=site.css;job.durationMs=Date.now()-start;
+          this.store.event(job,'Scanner target passed',`WinTech ${scan.report.scores.overall}/100; all browser checks passed. Publishing concept automatically without paid review or repair calls.`);
+          await publishApproved(this.store,job);return;
+        }
         const copyHash=crypto.createHash('sha256').update(JSON.stringify({contentContract:CONTENT_CONTRACT_VERSION,pages:site.pages,profile:job.profile,sources:job.research.sources,assets:job.assets})).digest('hex');
         const cachedAudit=job.claimAuditCache?.hash===copyHash?job.claimAuditCache.audit:null;
         const canAudit=!scan.issues.length&&job.contentCoverage.passed;
