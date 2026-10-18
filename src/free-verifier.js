@@ -3,7 +3,7 @@ import {DATA} from './config.js';
 import {renderSite} from './render-site.js';
 import {scanSite} from './checks.js';
 export async function verifySavedDraft(store,job){
- const before=store.budget(job.id).accounted,dir=path.join(DATA,'previews',job.token);
+ const started=Date.now(),before=store.budget(job.id).accounted,dir=path.join(DATA,'previews',job.token);
  const names=fs.readdirSync(dir).filter(n=>/^candidate-\d+\.json$/.test(n)).sort((a,b)=>Number(b.match(/\d+/)[0])-Number(a.match(/\d+/)[0]));
  const selected=job.repairCandidate&&fs.existsSync(path.join(dir,job.repairCandidate))?job.repairCandidate:names[0];if(!selected)throw Error('No saved candidate');
  const site=JSON.parse(fs.readFileSync(path.join(dir,selected),'utf8'));
@@ -13,6 +13,6 @@ export async function verifySavedDraft(store,job){
  site.fontSizeCorrections=[...(site.fontSizeCorrections||[]),...[...new Map((scan.browser?.checks||[]).flatMap(c=>(c.metrics?.smallTextDetails||[]).filter(f=>f.selector).map(f=>[c.page+'|'+f.selector,{page:c.page,...f}]))).values()]];
  site.readingGutterCorrections=[...(site.readingGutterCorrections||[]),...[...new Map((scan.browser?.checks||[]).flatMap(c=>(c.metrics?.textGutters||[]).filter(f=>f.selector).map(f=>[c.page+'|'+f.selector,{page:c.page,...f}]))).values()]];
  if(scan.issues.length){rendered=renderSite(job,site,job.assets);scan=await scanSite(job,rendered);}
- fs.writeFileSync(path.join(dir,'candidate-free-verified.json'),JSON.stringify(site));job.latestScan=scan;job.freeVerification={at:new Date().toISOString(),issues:scan.issues,paidCalls:0,views:scan.browser?.checks?.length||0};
+ fs.writeFileSync(path.join(dir,'candidate-free-verified.json'),JSON.stringify(site));job.latestScan=scan;job.freeVerification={at:new Date().toISOString(),durationMs:Date.now()-started,issues:scan.issues,paidCalls:0,views:scan.browser?.checks?.length||0};
  if(store.budget(job.id).accounted!==before)throw Error('Cost ledger changed during free verification');store.save(job);return job.freeVerification;
 }

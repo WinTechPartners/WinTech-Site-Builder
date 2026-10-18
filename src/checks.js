@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { load } from 'cheerio';
-import { PREVIEW_ORIGIN, DATA, ROOT } from './config.js';
+import { PREVIEW_ORIGIN, PREVIEW_PORT, DATA, ROOT } from './config.js';
 import {localReadiness} from './readiness.js';
 const require=createRequire(import.meta.url);
 export const scanner=require('../vendor/scanner/scanner.cjs');
@@ -50,7 +50,7 @@ export async function browserCheck(job,pages){
   const browser=await getBrowser(), checks=[], screenshots=[];
   for(const slug of pages.filter(s=>!['privacy','terms'].includes(s))){
     const documentUrl=`${PREVIEW_ORIGIN}/p/${job.token}/${slug}`;
-    const response=await fetch(documentUrl,{signal:AbortSignal.timeout(8000)});
+    const response=await fetch(`http://127.0.0.1:${PREVIEW_PORT}/p/${job.token}/${slug}`,{signal:AbortSignal.timeout(8000)});
     if(!response.ok)throw Error('Preview HTTP '+response.status);
     const html=await response.text();
     const expected=fs.readFileSync(path.join(DATA,'previews',job.token,(slug||'index')+'.html'),'utf8');
@@ -101,7 +101,7 @@ export async function browserCheck(job,pages){
   }
   return {checks,screenshots,issues:checks.flatMap(c=>c.issues.map(i=>`${c.page}: ${i}`))};
 }
-export async function scanSite(job,rendered){
+export async function scanSite(job,rendered,{external=false}={}){
   const url=`${PREVIEW_ORIGIN}/p/${job.token}/`, issues=[];
   const htmlChecks=[];
   for(const slug of ['', 'services','about']){
@@ -112,7 +112,7 @@ export async function scanSite(job,rendered){
   try{browser=await browserCheck(job,rendered.pages);issues.push(...browser.issues);}catch(e){browser={issues:[`Browser QA unavailable: ${e.message}`],screenshots:[],checks:[]};issues.push(...browser.issues);}
   let report=localReport(rendered.home,url);
   if(report.readiness.overall<80)issues.push(`Local readiness ${report.readiness.overall} is below the accepted 80/100 pass mark; repair the listed missing requirements together.`);
-  if(/^https:\/\//i.test(PREVIEW_ORIGIN)){
+  if(external&&/^https:\/\//i.test(PREVIEW_ORIGIN)){
     try{
       const raw=await scanner.fullScan(url);
       const measured=raw.performance.pagespeed?.scores;
