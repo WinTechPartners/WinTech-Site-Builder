@@ -67,11 +67,11 @@ export class Worker {
     const imageConfig=runwareConfig();
     this.checkpoint(job);
     if(imageConfig.enabled&&(!imageConfig.key||!imageConfig.model)){job.state='awaiting_images';this.store.event(job,'Waiting for Runware connection','Add the Runware API key in .env; generation resumes automatically on the same ledger.');return;}
-    if(job.artDirection?.version!==DESIGN_VERSION||(imageConfig.enabled&&!job.artDirection?.imagePrompt)){job.state='generating';this.store.event(job,'Creating a company-specific visual concept','Art direction, typography, hero imagery and section composition');job.artDirection=await this.direct(this.router,job);this.store.save(job);}
+    if(!job.artDirection||(imageConfig.enabled&&!job.artDirection?.imagePrompt)){job.state='generating';this.store.event(job,'Creating a company-specific visual concept','Art direction, typography, hero imagery and section composition');job.artDirection=await this.direct(this.router,job);this.store.save(job);}
     this.checkpoint(job);
     if(imageConfig.enabled&&!job.assets.some(a=>a.synthetic&&a.role==='hero')){job.state='generating';this.store.event(job,'Generating original Runware imagery',`${imageConfig.model}; one image, shared original prospect budget`);const asset=await generateHero(this.store,job,fetch,undefined,this.router.signalFor?.(job.id));if(asset)job.assets=[asset,...job.assets];this.store.save(job);}
     let feedback=job.repairFeedback||null,previous=null,builderIndex=0;
-    if(job.repairCandidate&&/^candidate-\d+\.json$/.test(job.repairCandidate))try{previous=JSON.parse(fs.readFileSync(path.join(DATA,'previews',job.token,job.repairCandidate),'utf8'));}catch{}
+    if(job.repairCandidate&&/^candidate-(?:\d+|free-verified)\.json$/.test(job.repairCandidate))try{previous=JSON.parse(fs.readFileSync(path.join(DATA,'previews',job.token,job.repairCandidate),'utf8'));}catch{}
     let attemptLimit=job.reconstructionPending?Math.min(8,BUILD_MAX_ATTEMPTS+2):BUILD_MAX_ATTEMPTS;
     for(let attempt=0;attempt<attemptLimit;attempt++){
       this.checkpoint(job);
@@ -81,7 +81,7 @@ export class Worker {
       this.store.event(job,attempt?'Automatically improving the preview':'Designing a distinct website',`${MODELS.find(m=>m.id===model).name} · attempt ${attempt+1} of ${attemptLimit}`);
       try{
         let candidate;
-        if(job.resumeCandidate){const name=job.resumeCandidate;if(!/^candidate-\d+\.json$/.test(name))throw new Error('Invalid saved candidate');candidate=JSON.parse(fs.readFileSync(path.join(DATA,'previews',job.token,name),'utf8'));delete job.resumeCandidate;this.store.event(job,'Resuming saved candidate checks','Reusing generated pages without another builder charge');}
+        if(job.resumeCandidate){const name=job.resumeCandidate;if(!/^candidate-(?:\d+|free-verified)\.json$/.test(name))throw new Error('Invalid saved candidate');candidate=JSON.parse(fs.readFileSync(path.join(DATA,'previews',job.token,name),'utf8'));delete job.resumeCandidate;this.store.event(job,'Resuming saved candidate checks','Reusing generated pages without another builder charge');}
         else if(job.reconstructionPending&&previous){
           job.reconstructionPending=false;job.homeReconstructed=true;this.store.save(job);
           candidate=applyReconstruction(previous,await this.router.call(job.id,DESIGN_RECONSTRUCTION_MODEL,'Homepage reconstruction',reconstructionMessages(job,previous,visualRepairContext(job)),14000),job);

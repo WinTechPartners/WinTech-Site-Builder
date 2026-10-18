@@ -111,6 +111,7 @@ export async function scanSite(job,rendered,{external=false}={}){
   let browser;
   try{browser=await browserCheck(job,rendered.pages);issues.push(...browser.issues);}catch(e){browser={issues:[`Browser QA unavailable: ${e.message}`],screenshots:[],checks:[]};issues.push(...browser.issues);}
   let report=localReport(rendered.home,url);
+  if(report.scores.overall<80)issues.push(`WinTech scanner ${report.scores.overall} is below 80. Improve real page requirements using supported company content. Category scores: ${JSON.stringify(report.scores.categories)}`);
   if(report.readiness.overall<80)issues.push(`Local readiness ${report.readiness.overall} is below the accepted 80/100 pass mark; repair the listed missing requirements together.`);
   if(external&&/^https:\/\//i.test(PREVIEW_ORIGIN)){
     try{
