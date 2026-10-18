@@ -1,0 +1,24 @@
+{
+  "name": "wintech-preview-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "check": "node --check src/server.js && node --check public/app.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^23.11.1"
+  },
+  "devDependencies": {
+    "serve-handler": "6.1.7"
+  }
+}
