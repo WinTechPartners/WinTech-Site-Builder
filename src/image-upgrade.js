@@ -3,7 +3,7 @@ import {generateHero,runwareConfig} from './runware.js';
 import {verifySavedDraft} from './free-verifier.js';
 import {editorialDirection} from './editorial-design.js';
 
-export const IMAGE_DIRECTION_VERSION=2;
+export const IMAGE_DIRECTION_VERSION=3;
 export function serviceImagePrompt(job){
  const names=(job.profile?.services||job.profile?.serviceInventory||[]).map(s=>typeof s==='string'?s:s.name).filter(Boolean);
  const security=/cyber|risk|compliance/i.test(names.join(' '));
@@ -16,7 +16,7 @@ export function serviceImagePrompt(job){
   'A premium macro editorial photograph of structured network cabling and optical fiber connected to professional switching equipment. Copper, graphite and blue materials, tangible engineering precision, dramatic soft side light and a sophisticated shallow depth of field.'
  ];
  const index=parseInt(crypto.createHash('sha256').update(job.url||job.id).digest('hex').slice(0,8),16)%scenes.length;
- return `Create a premium commercial editorial photograph illustrating business technology services. ${editorialDirection(job).scene||scenes[index]} Context: ${names.slice(0,8).join(', ')}. Realistic equipment scale, physically plausible connections, controlled exposure, crisp focal detail, subtle film texture and excellent tonal separation. Asymmetric wide composition: subject in right sixty percent, uncluttered dark negative space at left for separately rendered HTML text; keep the full main subject inside the central safe crop for mobile. This is illustrative imagery, not a photograph of the company's actual premises or equipment. No lettering, numbers, logos, watermarks, people, fake dashboards, charts or readable screens. No floating objects, glowing globes, glass sculptures, shields, padlock icons, neon cyberpunk, clip art, gradients masquerading as imagery or impossible sci-fi equipment. Create a convincing art-directed photograph with meaningful detail, not a stock handshake or generic abstract render.`;
+ return `Full-frame professional editorial photograph, edge-to-edge photographic content. ${editorialDirection(job).scene||scenes[index]} Realistic physical proportions, natural light, excellent tonal separation, crisp focal detail, sophisticated commercial art direction. Compose the main subject in the central safe crop. A photograph only: no typography, letters, words, printed documents, captions, sidebars, graphic panels, watermarks or layout design. No people, logos, readable screens, glowing icons, floating sculpture, shields or padlocks.`;
 }
 
 export async function upgradeImages(store,job){

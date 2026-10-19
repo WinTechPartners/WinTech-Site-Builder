@@ -41,7 +41,7 @@ export function sanitizeBody(body,job,assets,slugs) {
       try {
         if(href.startsWith('#'))return;
         if(href.startsWith('/')&&!href.startsWith('//')){
-          const local=new URL(href,'https://preview.invalid');const slug=local.pathname.replace(/^\/|\/$/g,'');
+          const local=new URL(href,'https://preview.invalid');const localPath=local.pathname.startsWith(base+'/')?local.pathname.slice(base.length):local.pathname;const slug=localPath.replace(/^\/|\/$/g,'');
           if(slugs.includes(slug))node.attr('href',`${base}/${slug}${local.hash}`);else node.removeAttr('href');
         }else if(href.startsWith('mailto:') && job.profile.email && href.slice(7)===job.profile.email){}
         else if(href.startsWith('tel:') && verifiedTelephone(href,job)){}

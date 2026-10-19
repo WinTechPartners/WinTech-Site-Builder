@@ -12,5 +12,5 @@ test('image-only authorization cannot enable text calls, repeated reservations, 
 });
 test('new image direction is deterministic and grounded in actual services',()=>{
  const j={url:'https://example.com',profile:{services:[{name:'Cybersecurity consulting'}]}};
- const p=serviceImagePrompt(j);assert.equal(serviceImagePrompt(j),p);assert.match(p,/Cybersecurity consulting/);assert.match(p,/not a photograph of the company's actual premises/);assert.match(p,/No floating objects/);
+ const p=serviceImagePrompt(j);assert.equal(serviceImagePrompt(j),p);assert.match(p,/photograph/i);assert.match(p,/no typography/i);assert.match(p,/No people/);
 });
