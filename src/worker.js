@@ -10,6 +10,7 @@ import { collectAssets,renderSite } from './render-site.js';
 import { scanSite } from './checks.js';
 import { DESIGN_VERSION,directDesign,reviewDesign,visualRepairContext,prepareHeroReference,initialVisualContext } from './design.js';
 import { runwareConfig,generateHero } from './runware.js';
+import {serviceImagePrompt} from './image-upgrade.js';
 import {publishApproved,autoReady} from './public-site.js';
 import {refinementMessages,applyRefinement} from './refine.js';
 import {reconstructionMessages,applyReconstruction} from './reconstruct.js';
@@ -48,6 +49,7 @@ export class Worker {
     try{await this.run(job);}catch(e){job.state=job.cancelRequested||/CANCELLED/.test(e.message)?'cancelled':'failed';job.error=e.message;this.store.event(job,job.state==='cancelled'?'Stopped by you':'Stopped automatically',e.message);}finally{this.busy=false;this.currentJob=null;}
   }
   async run(job){
+    if(!job.attempts)job.editorialUpgrade=true;
     const start=Date.now();this.currentJob=job;job.cancelRequested=false;this.router.resume?.(job.id);job.error=null;job.preview=null;
     const previousProfile=job.profile;
     if(job.research&&(job.research.version!==4||!Array.isArray(job.research.sources?.[0]?.emails))){job.research=null;job.profile=null;job.assetContractVersion=null;this.store.event(job,'Refreshing source coverage','Refreshing original identity, vendor, service and industry evidence. Existing paid artwork and cumulative cost ledger retained.');}
@@ -79,7 +81,7 @@ export class Worker {
     if(imageConfig.enabled&&(!imageConfig.key||!imageConfig.model)){job.state='awaiting_images';this.store.event(job,'Waiting for Runware connection','Add the Runware API key in .env; generation resumes automatically on the same ledger.');return;}
     if(!job.artDirection||(imageConfig.enabled&&!job.artDirection?.imagePrompt)){job.state='generating';this.store.event(job,'Creating a company-specific visual concept','Art direction, typography, hero imagery and section composition');job.artDirection=await this.direct(this.router,job);this.store.save(job);}
     this.checkpoint(job);
-    if(imageConfig.enabled&&!job.assets.some(a=>a.synthetic&&a.role==='hero')){job.state='generating';this.store.event(job,'Generating original Runware imagery',`${imageConfig.model}; one image, shared original prospect budget`);const asset=await generateHero(this.store,job,fetch,undefined,this.router.signalFor?.(job.id));if(asset)job.assets=[asset,...job.assets];this.store.save(job);}
+    if(imageConfig.enabled&&!job.assets.some(a=>a.synthetic&&a.role==='hero')){job.artDirection.imagePrompt=serviceImagePrompt(job);job.state='generating';this.store.event(job,'Generating original Runware imagery',`${imageConfig.model}; one image, shared original prospect budget`);const asset=await generateHero(this.store,job,fetch,undefined,this.router.signalFor?.(job.id));if(asset)job.assets=[asset,...job.assets];this.store.save(job);}
     let feedback=job.repairFeedback||null,previous=null,builderIndex=0;
     if(job.repairCandidate&&/^candidate-(?:\d+|free-verified)\.json$/.test(job.repairCandidate))try{previous=JSON.parse(fs.readFileSync(path.join(DATA,'previews',job.token,job.repairCandidate),'utf8'));}catch{}
     let attemptLimit=job.reconstructionPending?Math.min(8,BUILD_MAX_ATTEMPTS+2):BUILD_MAX_ATTEMPTS;

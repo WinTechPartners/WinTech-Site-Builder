@@ -14,7 +14,7 @@ export function runwareConfig(){
  return {enabled,key,model,maximum,params};
 }
 
-export async function generateHero(store,job,transport=fetch,download=safeFetch,signal){
+export async function generateHero(store,job,transport=fetch,download=safeFetch,signal,imageUpgrade=false){
  const cfg=runwareConfig();if(!cfg.enabled)return null;
  if(!cfg.key||!cfg.model)throw new Error('RUNWARE_SETUP_REQUIRED: Add RUNWARE_API_KEY and RUNWARE_MODEL_ID to .env');
  if(job.runwareTask?.asset)return job.runwareTask.asset;
@@ -27,7 +27,8 @@ export async function generateHero(store,job,transport=fetch,download=safeFetch,
  let record=job.runwareTask;
  if(!record){
    const prompt=String(job.artDirection?.imagePrompt||'').trim();if(prompt.length<80||prompt.length>5000)throw new Error('Runware image art direction is incomplete');
-   const taskUUID=crypto.randomUUID(),call=store.reserve(job.id,'runware/'+cfg.model,'Original Runware hero image',Math.ceil(cfg.maximum*1e6));
+   const taskUUID=crypto.randomUUID(),call=store.reserve(job.id,'runware/'+cfg.model,'Original Runware hero image',Math.ceil(cfg.maximum*1e6),imageUpgrade);
+   if(imageUpgrade)job.imageUpgrade.call=call;
    record=job.runwareTask={taskUUID,call,model:cfg.model,state:'submitted',params:cfg.params,prompt};store.save(job);
    // Journal before sending. An uncertain submission is polled by UUID, never
    // submitted a second time. No other image provider or model is substituted.
@@ -45,5 +46,5 @@ export async function generateHero(store,job,transport=fetch,download=safeFetch,
  const image=await download(url.href,{maxBytes:6000000,accept:'image/webp,image/jpeg,image/png',timeout:30000});
  const ext=image.type.includes('webp')?'webp':image.type.includes('png')?'png':image.type.includes('jpeg')?'jpg':null;if(!ext)throw new Error('Runware result is not a supported image');
  const name=crypto.createHash('sha256').update(image.bytes).digest('hex').slice(0,16)+'.'+ext,dir=path.join(DATA,'previews',job.token,'assets');fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,name),image.bytes);
- record.asset={src:`/p/${job.token}/assets/${name}`,alt:'Original conceptual technology illustration',width:record.params.width,height:record.params.height,synthetic:true,role:'hero',source:'Runware '+record.model};record.state='ready';store.save(job);return record.asset;
+ record.asset={src:`/p/${job.token}/assets/${name}`,alt:'Illustrative business technology photography — not company premises',width:record.params.width,height:record.params.height,synthetic:true,role:'hero',source:'Runware '+record.model};record.state='ready';store.save(job);return record.asset;
 }

@@ -4,7 +4,7 @@ import {Store} from '../src/store.js';
 import {generateHero} from '../src/runware.js';
 
 function setup(t){
- const settings={RUNWARE_ENABLED:'true',RUNWARE_API_KEY:'fixture-not-a-real-key',RUNWARE_MODEL_ID:'fixture:hero@1',RUNWARE_IMAGE_MAX_USD:'.04',RUNWARE_IMAGE_PARAMS_JSON:'{"width":1536,"height":1024,"steps":16}'};
+ const settings={MODEL_CALLS_ENABLED:'true',PAID_GENERATION_NEW_URLS_AFTER:'',RUNWARE_ENABLED:'true',RUNWARE_API_KEY:'fixture-not-a-real-key',RUNWARE_MODEL_ID:'fixture:hero@1',RUNWARE_IMAGE_MAX_USD:'.04',RUNWARE_IMAGE_PARAMS_JSON:'{"width":1536,"height":1024,"steps":16}'};
  const previous=Object.fromEntries(Object.keys(settings).map(k=>[k,process.env[k]]));Object.assign(process.env,settings);
  t.after(()=>{for(const [key,value]of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;});
  const store=new Store(':memory:'),job=store.create('https://example.org/',[]);job.artDirection={imagePrompt:'An original conceptual technology illustration with detailed materials, disciplined lighting and negative space, without text or invented company facilities.'};

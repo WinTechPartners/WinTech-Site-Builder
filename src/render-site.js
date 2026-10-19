@@ -9,6 +9,7 @@ import {responsiveFoundation} from './responsive-foundation.js';
 import {normalizeHeadings} from './semantic-foundation.js';
 import {addInteractions,interactionCSS} from './interactions.js';
 import {normalizeRetainedAssets} from './retained-assets.js';
+import {applyEditorialDesign} from './editorial-design.js';
 import {preserveVendors,vendorCSS,verifiedVendors} from './vendors.js';
 
 export const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -92,6 +93,11 @@ const foundation=`@media(max-width:900px){.studio-reading-gutter{padding-inline:
 const policy=(job,kind)=>`<header><nav><a href="/">${escape(job.profile.name)}</a> · <a href="/services">Services</a> · <a href="/about">About</a></nav></header><main id="main"><h1>${kind==='privacy'?'Preview privacy notice':'Preview terms'}</h1><p>This is an independently prepared, unapproved website redesign concept operated by WinTech. It is not the company's live website.</p>${kind==='privacy'?'<h2>Data and contact forms</h2><p>This preview does not install analytics or advertising trackers. The demonstration form does not send or store submissions. The hosting server may process ordinary request logs for operation and security. Do not enter sensitive information.</p>':'<h2>Using this concept</h2><p>Content is based on public sources and has not been approved by the business. Services and availability must be confirmed directly with the business. No purchase or service agreement can be made through this preview.</p>'}<h2>Contact the business</h2><p><a href="${escape(job.profile.sourceUrl)}">Visit the original company website</a> for current business information, contact options and its own policies.</p></main><footer><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>`;
 export function renderSite(job,site,assets) {
   normalizeRetainedAssets(job,site,assets);
+  for(const [oldSrc,newSrc] of Object.entries(job.imageReplacements||{})){
+    site.css=site.css.replaceAll(oldSrc,newSrc);
+    for(const page of site.pages)page.body=page.body.replaceAll(oldSrc,newSrc);
+  }
+  applyEditorialDesign(job,site,assets);
   // Recover a standalone variable reference missing its closing parenthesis.
   site.css=site.css.replace(/var\((--[\w-]+)\s*(?=[;}])/g,'var($1)');
   site={...site,css:site.css+'\n'+vendorCSS+'\n.studio-faq{max-width:1200px;margin:auto;padding:clamp(40px,6vw,96px) clamp(24px,5vw,72px)}.studio-faq h2{font-family:"Space Grotesk",sans-serif;font-size:clamp(2rem,4vw,3.5rem);line-height:1.1;letter-spacing:-.04em}.studio-faq details{border-top:1px solid currentColor;padding:20px 0}.studio-faq summary{font-weight:650;cursor:pointer;min-height:44px;display:list-item;align-content:center}.studio-faq p{max-width:70ch}.preview-form-notice{color:#142033!important;background:#f4f0e8!important;padding:12px!important;border-left:3px solid #9e3d20!important}'};
@@ -106,6 +112,7 @@ export function renderSite(job,site,assets) {
     let $=load(body,null,false);
     const heroAsset=assets.find(a=>a.synthetic&&a.role==='hero');
     const heroSection=$('main>section').first();
+    if(page.slug==='services'&&heroAsset&&job.imageUpgrade?.asset&&!$('main img').length)$('main h1').first().after(`<figure style="margin:32px 0;overflow:hidden;border-radius:12px"><img src="${escape(heroAsset.src)}" alt="${escape(heroAsset.alt)}" width="1536" height="1024" style="display:block;width:100%;height:clamp(220px,30vw,420px);object-fit:cover" decoding="async"></figure>`);
     if(page.slug===''&&heroAsset&&heroSection.find('h1').length&&!heroSection.find('img').length&&!site.css.includes(heroAsset.src))heroSection.append(`<figure class="studio-retained-art" style="grid-column:1/-1;clear:both;margin:24px 0 0;max-width:100%;overflow:hidden"><img src="${escape(heroAsset.src)}" alt="${escape(heroAsset.alt)}" width="${heroAsset.width||1536}" height="${heroAsset.height||1024}" loading="eager" decoding="async" style="width:100%;height:clamp(220px,32vw,420px);object-fit:cover"></figure>`);
     $('a.skip[href="#main"]').remove();
     $('form p,form small').each((_,el)=>{if(/preview only|demonstration contact form/i.test($(el).text()))$(el).addClass('preview-form-notice');});

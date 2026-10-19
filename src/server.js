@@ -10,6 +10,7 @@ import { Worker,shuffledModels } from './worker.js';
 import { normalizeTarget } from './network.js';
 import { securityHeaders,closeBrowser } from './checks.js';
 import {verifySavedDraft} from './free-verifier.js';
+import {upgradeImages} from './image-upgrade.js';
 import {validateProfile} from './generate.js';
 import {draftFingerprint} from './public-site.js';
 import {importMigration} from './migration.js';
@@ -78,8 +79,15 @@ export function createServers(options={}){
           let bag=JSON.parse(store.setting('modelBag')||'[]').filter(id=>MODELS.some(m=>m.id===id));if(!bag.length)bag=shuffledModels();const first=bag.shift();store.setting('modelBag',JSON.stringify(bag));
           const order=[first,...shuffledModels().filter(m=>m!==first)];const job=store.create(url,order);worker.tick();return send(res,202,publicJob(job,store));
         }
-        const match=u.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)(\/(?:retry|stop|verify|publish-draft))?$/);
+        const match=u.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)(\/(?:retry|stop|verify|publish-draft|upgrade-images))?$/);
         if(match){const job=store.get(match[1]);if(!job)return send(res,404,{error:'Job not found'});
+          if(req.method==='POST'&&match[2]==='/upgrade-images'){
+            const body=await readBody(req);if(body.confirm!=='replace-imagery-within-existing-cap')return send(res,400,{error:'Explicit image-only upgrade authorization required'});
+            if(job.imageUpgrade?.state==='running')return send(res,202,job.imageUpgrade);
+            if(worker.busy||job.freeVerification?.state==='running')return send(res,409,{error:'Wait for the active site operation to finish'});
+            upgradeImages(store,job).catch(error=>{job.imageUpgrade={...job.imageUpgrade,state:'failed',error:String(error.message)};store.save(job);});
+            return send(res,202,{state:'running',model:'bfl:flux@3-image-klein',maximumAdditionalCost:.04});
+          }
           if(req.method==='POST'&&match[2]==='/verify'){
             if(job.freeVerification?.state==='running')return send(res,202,job.freeVerification);
             job.freeVerification={state:'running',at:new Date().toISOString(),paidCalls:0};store.save(job);

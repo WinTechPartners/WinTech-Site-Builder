@@ -32,8 +32,10 @@ export class Store {
   }
   cap(id){const cap=this.get(id)?.budgetCapMicro??BUDGET_MICRO;if(!Number.isSafeInteger(cap)||cap<1000||cap>900000)throw new Error('Invalid prospect budget cap');return cap;}
   paidEligible(job){const allowed=(process.env.PAID_GENERATION_RESUME_JOB_IDS||'').split(',').map(s=>s.trim());if(job?.id&&allowed.includes(job.id))return true;const cutoff=process.env.PAID_GENERATION_NEW_URLS_AFTER;return !cutoff||(Number.isFinite(Date.parse(cutoff))&&Date.parse(job?.created)>=Date.parse(cutoff));}
-  reserve(job, model, purpose, micro) {
-    if(!this.paidEligible(this.get(job)))throw new Error('EXISTING_PROSPECT_PROTECTED: New paid calls are enabled only for newly submitted URLs; saved work remains available');
+  reserve(job, model, purpose, micro, imageUpgrade=false) {
+    const upgrade=this.get(job)?.imageUpgrade;
+    const scoped=imageUpgrade&&upgrade?.state==='running'&&!upgrade.call&&model==='runware/'+upgrade.model&&micro<=40000&&purpose==='Original Runware hero image';
+    if(!scoped&&!this.paidEligible(this.get(job)))throw new Error('EXISTING_PROSPECT_PROTECTED: New paid calls are enabled only for newly submitted URLs; saved work remains available');
     if (!Number.isSafeInteger(micro) || micro <= 0) throw new Error('Invalid budget reservation');
     this.db.exec('BEGIN IMMEDIATE');
     try {
@@ -52,6 +54,7 @@ export class Store {
   }
   uncertain(id, reason) { this.db.prepare('UPDATE calls SET state=?,detail=? WHERE id=?').run('uncertain', JSON.stringify({ reason }), id); }
   recover() {
+    for(const job of this.list())if(job.imageUpgrade?.state==='running'){job.imageUpgrade.state='interrupted';this.save(job);}
     for(const job of this.list())if(job.freeVerification?.state==='running'){job.freeVerification={...job.freeVerification,state:'interrupted',error:'Free verification interrupted by restart; safe to resume without model calls'};this.save(job);}
     this.db.prepare("UPDATE calls SET state='uncertain',detail='\"Interrupted request: reservation retained\"' WHERE state='pending'").run();
     for (const job of this.list()) if (['researching','generating','checking','repairing'].includes(job.state)) {
