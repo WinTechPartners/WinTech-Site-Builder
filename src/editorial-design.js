@@ -29,10 +29,13 @@ export function applyEditorialDesign(job,site,assets){
  if(!(job.imageUpgrade?.asset||job.editorialUpgrade))return;
  const hero=assets.find(a=>a.synthetic&&a.role==='hero');if(!hero)return;
  const d=editorialDirection(job),base='/p/'+job.token+'/';
- if(site.editorialVersion!==3){
+ const upgrading=site.editorialVersion!==4;
+ if(upgrading){
  for(const page of site.pages){
   const $=load(page.body,null,false);$('main').addClass('edition-main').attr('data-edition',d.mode);$('header').addClass('edition-header');$('footer').addClass('edition-footer');
   $('[style]').removeAttr('style');
+  const logo=assets.find(a=>a.role==='logo'),nav=[['','Home'],['services','Services'],['about','About'],['#contact','Contact']].map(([slug,name])=>`<a href="${base}${slug}"${page.slug===slug?' aria-current="page"':''}>${name}</a>`).join('');
+  $('header').first().replaceWith(`<header class="edition-header"><a class="edition-brand" href="${base}">${logo?`<img src="${esc(logo.src)}" alt="${esc(job.profile.name)}" width="${logo.width||220}" height="${logo.height||60}">`:esc(job.profile.name)}</a><nav class="edition-nav" aria-label="Main navigation">${nav}</nav><details class="edition-menu"><summary>Menu</summary><nav aria-label="Mobile navigation">${nav}</nav></details></header>`);
   const seen=new Set();$('main>section').each((i,e)=>{const n=$(e),key=n.text().replace(/\s+/g,' ').trim();if(key.length>100&&seen.has(key))n.remove();seen.add(key);});
   const old=$('main>section').filter((i,e)=>$(e).find('h1').length).first();
   if(old.length){
@@ -41,12 +44,14 @@ export function applyEditorialDesign(job,site,assets){
    const lead=paragraphs.find(p=>p.length>75&&!/preview|demonstration/i.test(p))||job.profile.tagline;
    const originalCTA=old.find('a[href]').filter((i,a)=>!/mailto:|privacy|terms/i.test($(a).attr('href'))).first();
    const action=originalCTA.length?originalCTA.attr('href'):base+'#contact';
-   const label=originalCTA.length?originalCTA.text().trim().replace(/[↗→]+\\s*$/,''):'Talk about your technology';
+   const label=originalCTA.length?originalCTA.text().replace(/[↗→]/g,'').trim():'Talk about your technology';
    const kicker=page.slug==='services'?'Services & solutions':page.slug==='about'?'The people behind your technology':d.label;
    const extra=paragraphs.filter(p=>p!==lead&&p.length>75&&!/preview|demonstration/i.test(p));
    old.replaceWith(`<section class="edition-hero edition-${d.mode}"><div class="edition-copy"><p class="edition-eyebrow">${esc(kicker)}</p><h1>${esc(title)}</h1><p class="edition-lead">${esc(lead)}</p><div class="edition-actions"><a class="edition-primary" href="${esc(action)}">${esc(label.slice(0,64))}<span aria-hidden="true">↗</span></a><a class="edition-secondary" href="${base}${page.slug==='services'?'#contact':'services'}">${page.slug==='services'?'Discuss your needs':'Explore our services'} <span aria-hidden="true">→</span></a></div></div><figure class="edition-photo"><img src="${esc(hero.src)}" width="1536" height="1024" alt="${esc(hero.alt)}" fetchpriority="high" decoding="async"><figcaption>Technology in context · Illustrative imagery</figcaption></figure></section>${extra.length?`<section class="edition-context">${extra.map(p=>'<p>'+esc(p)+'</p>').join('')}</section>`:''}`);
   }
   $('main>section:not(.edition-hero)').addClass('edition-section');
+  const paragraphsSeen=new Set();$('main p').each((_,el)=>{const n=$(el),key=n.text().replace(/\s+/g,' ').trim();if(n.closest('details,form').length||key.length<140)return;if(paragraphsSeen.has(key))n.remove();else paragraphsSeen.add(key);});
+  $('main>section').each((_,el)=>{const n=$(el),seenHeadings=new Set();n.find('h2').each((_,h)=>{const key=$(h).text().trim();if(seenHeadings.has(key))$(h).remove();else seenHeadings.add(key);});});
   $('main>section').not('.edition-hero').each((i,e)=>{
    const n=$(e);n.find('div').each((_,el)=>{const x=$(el),children=x.children('article,div');if(children.length>=2&&children.length<=8&&children.filter((_,c)=>$(c).find('h2,h3,h4').length).length===children.length){x.addClass('edition-grid');children.addClass('edition-card');}});
    if(n.children('article').length>=2)n.addClass('edition-grid').children('article').addClass('edition-card');
@@ -63,11 +68,12 @@ export function applyEditorialDesign(job,site,assets){
   }
   page.body=$.html();
  }
- site.editorialVersion=3;
+ site.editorialVersion=4;
  site.contrastCorrections=[];site.fontSizeCorrections=[];site.readingGutterCorrections=[];
  }
- site.css=editorialCSS(d)+`.edition-service-list{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:36px 0}.edition-service-card{padding:28px;background:#fff;color:var(--ed-ink);margin:0;min-width:0;border-top:3px solid var(--ed-accent)}.edition-service-card p{font-size:16px;line-height:1.7}.edition-service-card h3{font:600 24px/1.2 "Space Grotesk",sans-serif;letter-spacing:-.035em}.edition-service-card details p{font-size:16px}.edition-header{flex-wrap:wrap}@media(max-width:600px){.edition-service-list{grid-template-columns:1fr}.edition-service-card{padding:24px}.edition-header>nav{width:100%;justify-content:flex-start}}`;
+ if(upgrading)site.css=editorialCSS(d)+`.edition-service-list{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:36px 0}.edition-service-card{padding:28px;background:#fff;color:var(--ed-ink);margin:0;min-width:0;border-top:3px solid var(--ed-accent)}.edition-service-card p{font-size:16px;line-height:1.7}.edition-service-card h3{font:600 24px/1.2 "Space Grotesk",sans-serif;letter-spacing:-.035em}.edition-service-card details p{font-size:16px}.edition-header{flex-wrap:nowrap;min-height:92px;padding-block:16px}.edition-header .edition-brand{font-size:22px;letter-spacing:-.04em;max-width:65%;line-height:1.2}.edition-header .edition-nav{width:auto;display:flex;gap:28px;flex-wrap:nowrap}.edition-header .edition-menu{display:none}.edition-header .edition-menu[open]>nav{z-index:50;display:flex;flex-direction:column;align-items:flex-start;gap:20px}.edition-header a[aria-current=page]{text-decoration:underline;text-decoration-color:var(--ed-muted);text-underline-offset:8px}.edition-hero h1{font-size:clamp(44px,5.4vw,78px)}.edition-editorial h1{font-size:clamp(48px,5.8vw,84px)}.edition-grid .edition-grid{grid-template-columns:1fr}@media(max-width:1000px){.edition-grid,.edition-section [class*=grid]:not(.edition-grid){grid-template-columns:1fr}}@media(max-width:600px){.edition-service-list{grid-template-columns:1fr}.edition-service-card{padding:24px}.edition-header .edition-nav{display:none}.edition-header .edition-menu{display:block}.edition-header .edition-brand{font-size:18px}.edition-copy{display:flex!important;flex-direction:column}.edition-eyebrow{order:-3}.edition-copy h1{order:-2;font-size:42px}.edition-actions{order:-1;margin:6px 0 24px!important}.edition-header{min-height:82px}.edition-copy .edition-lead{font-size:16px}}`;
  site.responsiveFoundation=false;
+ if(upgrading)site.css+='.edition-footer h2{font:700 14px/1.5 Manrope,sans-serif;letter-spacing:.04em;text-transform:uppercase}.edition-header .edition-menu summary{font-size:14px;font-weight:700}.edition-header .edition-menu[open]>nav{min-width:210px}';
  // The new composition has new selectors; do not carry geometry fixes from the old layout.
 }
 

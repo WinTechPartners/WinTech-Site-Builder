@@ -29,6 +29,7 @@ export class Worker {
       job.conceptRefresh.direction=await this.direct(this.router,job,true);job.conceptRefresh.stage='image';this.store.save(job);
     }
     job.artDirection=job.conceptRefresh.direction;
+    job.artDirection.imagePrompt=serviceImagePrompt(job);
     if(job.conceptRefresh.stage==='image'){
       if(runwareConfig().enabled){
         if(job.runwareTask?.asset&&!job.conceptRefresh.archived){(job.runwareHistory||=[]).push(job.runwareTask);job.runwareTask=null;job.conceptRefresh.archived=true;this.store.save(job);}

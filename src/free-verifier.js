@@ -3,6 +3,7 @@ import {DATA} from './config.js';
 import {renderSite} from './render-site.js';
 import {scanSite} from './checks.js';
 export async function verifySavedDraft(store,job){
+ if(job.imageUpgrade?.asset&&job.visualReview&&!job.imageUpgrade.reviewArchived){job.imageUpgrade.previousVisualReview=job.visualReview;job.visualReview=null;job.imageUpgrade.reviewArchived=true;}
  const started=Date.now(),before=store.budget(job.id).accounted,dir=path.join(DATA,'previews',job.token);
  const names=fs.readdirSync(dir).filter(n=>/^candidate-\d+\.json$/.test(n)).sort((a,b)=>Number(b.match(/\d+/)[0])-Number(a.match(/\d+/)[0]));
  const candidates=[...new Set([...names,'candidate-free-verified.json',job.repairCandidate].filter(n=>n&&/^candidate-[a-z0-9-]+\.json$/.test(n)&&fs.existsSync(path.join(dir,n))))];
