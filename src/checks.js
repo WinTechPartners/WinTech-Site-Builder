@@ -1,3 +1,5 @@
+import {PREVIEW_CONTROLS} from './preview-runtime.js';
+import {checkInteractions} from './interaction-check.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -66,7 +68,7 @@ export async function browserCheck(job,pages){
             const relative=decodeURIComponent(u.pathname);let file,type;
             if(relative.startsWith('/p/'+job.token+'/assets/')&&/^[-a-f0-9]+\.(png|jpg|webp)$/.test(path.basename(relative))){file=path.join(DATA,'previews',job.token,'assets',path.basename(relative));type='image/'+(file.endsWith('.jpg')?'jpeg':path.extname(file).slice(1));}
             else if(/^\/fonts\/[a-z-]+\.woff2$/.test(relative)){file=path.join(ROOT,'public','fonts',path.basename(relative));type='font/woff2';}
-            else if(relative==='/preview-controls.js'){return await req.respond({status:200,contentType:'application/javascript',body:"document.querySelectorAll('form').forEach(f=>f.addEventListener('submit',e=>e.preventDefault()));"});}
+            else if(relative==='/preview-controls.js'){return await req.respond({status:200,contentType:'application/javascript',body:PREVIEW_CONTROLS});}
             else return await req.abort();
             await req.respond({status:200,contentType:type,body:fs.readFileSync(file)});
           }catch{try{await req.abort();}catch{}}
@@ -82,8 +84,9 @@ export async function browserCheck(job,pages){
           for(const img of document.images)img.loading='eager';
           await Promise.race([Promise.all([...document.images].map(img=>img.decode().catch(()=>{}))),new Promise(r=>setTimeout(r,5000))]);
         });
+        const interactions=await checkInteractions(page,slug==='');
         const metrics=await page.evaluate(measureLayout);
-        const issues=[];
+        const issues=[...interactions.issues];
         if(metrics.scrollWidth>width+3)issues.push(`Horizontal overflow at ${width}px: ${metrics.overflow.join(', ')}`);
         if(metrics.headingSplits.length)issues.push('Heading breaks inside words: '+metrics.headingSplits.join(', '));
         if(metrics.narrowCopy.length)issues.push('Service copy has an unreadably narrow text column');
@@ -95,7 +98,7 @@ export async function browserCheck(job,pages){
         if(metrics.contrast.length)issues.push(`Low text contrast: ${metrics.contrast.slice(0,4).map(c=>`${c.text} (${c.ratio}:1)`).join('; ')}`);
         if(errors.length)issues.push('Browser script error');
         const filename=`${slug||'home'}-${width}.png`;await page.screenshot({path:path.join(DATA,'previews',job.token,filename),fullPage:true,timeout:15000});screenshots.push(filename);
-        checks.push({page:slug||'home',width,metrics,issues});
+        checks.push({page:slug||'home',width,metrics,interactions:interactions.proof,issues});
       }finally{await page.close();}
     }
   }

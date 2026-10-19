@@ -137,7 +137,7 @@ export function createServers(options={}){
       if(u.pathname==='/security')return send(res,200,'Security reports: contact the operator who supplied this preview link. Do not submit secrets to preview forms.','text/plain');
       if(/^\/fonts\/(manrope|space-grotesk|instrument-serif-italic)\.woff2$/.test(u.pathname))return send(res,200,fs.readFileSync(path.join(ROOT,'public',u.pathname)),'font/woff2');
       if(u.pathname==='/favicon.svg')return send(res,200,'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#173d38"/><path d="M12 18l8 28h7l5-17 5 17h7l8-28h-8l-4 17-5-17h-7l-5 17-4-17z" fill="#eff6d1"/></svg>',MIME['.svg']);
-      if(u.pathname==='/preview-controls.js')return send(res,200,`document.querySelectorAll('form').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();let message=form.querySelector('[role="status"]');if(!message){message=document.createElement('p');message.setAttribute('role','status');form.appendChild(message);}message.textContent='Preview only. No information was sent or stored. Please use the original company website to get in touch.';}));` ,MIME['.js']);
+      if(u.pathname==='/preview-controls.js')return send(res,200,PREVIEW_CONTROLS,MIME['.js']);
       const m=u.pathname.match(/^\/p\/([a-f0-9]{48})(?:\/(.*))?$/);if(!m)return send(res,404,'Preview not found','text/plain');
       const relative=decodeURIComponent(m[2]||'');
       if(relative.includes('..')||relative.includes('\\')||relative.includes('\0'))return send(res,400,'Invalid path','text/plain');

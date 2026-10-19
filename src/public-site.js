@@ -6,7 +6,8 @@ import {promisify} from 'node:util';
 import {ROOT,DATA,PREVIEW_ORIGIN} from './config.js';
 import {CONTENT_CONTRACT_VERSION} from './content-contract.js';
 const run=promisify(execFile);
-export const PREVIEW_CONTROLS="document.querySelectorAll('form').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();let message=form.querySelector('[role=\"status\"]');if(!message){message=document.createElement('p');message.setAttribute('role','status');form.appendChild(message);}message.textContent='Preview only. No information was sent or stored. Please use the original company website to get in touch.';}));";
+import {PREVIEW_CONTROLS} from './preview-runtime.js';
+export {PREVIEW_CONTROLS};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm=s=>String(s||'').replace(/\s+/g,' ').toLowerCase();
 export function publicOrigin(value=process.env.PUBLIC_SITE_ORIGIN){const u=new URL(value||PREVIEW_ORIGIN);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.pathname!=='/'||u.search||u.hash)throw new Error('PUBLIC_SITE_ORIGIN must be an origin without a path or credentials');return u.origin;}
