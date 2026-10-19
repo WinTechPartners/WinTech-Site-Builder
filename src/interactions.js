@@ -8,12 +8,15 @@ export function addInteractions($,job,site,page){
  if(page.slug!=='')return;
  const services=site.pages.find(p=>p.slug==='services');if(!services)return;
  const source=load(services.body),items=[],seen=new Set();
- source('main article,main .chapter,main .tier,main section').each((_,el)=>{
+ const collect=(_,el)=>{
   const n=source(el),heading=n.find('h2,h3').first(),title=heading.text().replace(/\s+/g,' ').trim();
   if(!title||title.length>110||/faq|questions|contact|privacy|terms|preview|questions.*answered/i.test(title)||seen.has(title.toLowerCase()))return;
   const paragraphs=n.find('p').filter((_,p)=>!source(p).closest('form,[hidden],[aria-hidden="true"]').length).map((_,p)=>source(p).text().replace(/\s+/g,' ').trim()).get().filter(t=>t.length>35);
   if(!paragraphs.length)return;seen.add(title.toLowerCase());items.push({title,text:paragraphs[0],anchor:heading.attr('id')||n.attr('id')});
- });
+ };
+ // Prefer actual service chapters/cards over introductory overview sections.
+ source('main article,main .chapter,main .tier').each(collect);
+ source('main section').each(collect);
  if(items.length<2)source('main h2,main h3').each((_,el)=>{const n=source(el),title=n.text().trim(),text=n.nextAll('p').first().text().trim();if(title&&title.length<110&&text.length>35&&!/faq|questions|contact|privacy|preview/i.test(title)&&!seen.has(title.toLowerCase())){seen.add(title.toLowerCase());items.push({title,text,anchor:n.attr('id')||n.parent().attr('id')});}});
  if(items.length<2)return;
  const base='/p/'+job.token+'/',email=/^[\w.+-]+@[\w.-]+\.[a-z]{2,}$/i.test(job.profile?.email||'')?job.profile.email:null;
