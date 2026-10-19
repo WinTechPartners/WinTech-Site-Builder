@@ -29,14 +29,14 @@ export function applyEditorialDesign(job,site,assets){
  if(!(job.imageUpgrade?.asset||job.editorialUpgrade))return;
  const hero=assets.find(a=>a.synthetic&&a.role==='hero');if(!hero)return;
  const d=editorialDirection(job),base='/p/'+job.token+'/';
- if(site.editorialVersion!==1){
+ if(site.editorialVersion!==2){
  for(const page of site.pages){
   const $=load(page.body,null,false);$('main').addClass('edition-main').attr('data-edition',d.mode);$('header').addClass('edition-header');$('footer').addClass('edition-footer');
   $('[style]').removeAttr('style');
   const seen=new Set();$('main>section').each((i,e)=>{const n=$(e),key=n.text().replace(/\s+/g,' ').trim();if(key.length>100&&seen.has(key))n.remove();seen.add(key);});
   const old=$('main>section').filter((i,e)=>$(e).find('h1').length).first();
   if(old.length){
-   const title=old.find('h1').text().replace(/\s+/g,' ').trim();
+   const title=old.find('h1').text().replace(/\s+/g,' ').replace(/([.!?])(?=[A-Z])/g,'$1 ').trim();
    const paragraphs=old.find('p').map((i,p)=>$(p).text().trim()).get();
    const lead=paragraphs.find(p=>p.length>75&&!/preview|demonstration/i.test(p))||job.profile.tagline;
    const originalCTA=old.find('a[href]').filter((i,a)=>!/mailto:|privacy|terms/i.test($(a).attr('href'))).first();
@@ -54,15 +54,19 @@ export function applyEditorialDesign(job,site,assets){
   });
   if(page.slug==='services'){
    // Add service-specific decision help beside thin existing service descriptions.
-   $('main li').each((_,el)=>{const n=$(el);if(n.closest('nav,form,footer').length||n.find('li').length)return;const text=n.text().trim();if(text.length<18||text.length>300||/framework|Monday|Tuesday|business hours|^[0-9]/i.test(text))return;const title=text.split(/\s[:—]\s/)[0].replace(/^✓\s*/,''),[question,guide]=serviceGuidance(title);if(!/service|support|cloud|security|backup|network|compliance|managed|wifi|wi-fi|software|cabling|365|recovery|ai /i.test(title))return;n.append(`<details class="edition-guide"><summary>Plan a useful conversation</summary><p><strong>${esc(question)}</strong></p><p>${esc(guide)}</p><a href="${base}#contact">Discuss ${esc(title.slice(0,60))} →</a></details>`);});
+   $('main li').each((_,el)=>{const n=$(el);if(n.closest('nav,form,footer').length||n.find('li').length)return;const copy=n.clone();copy.find('details').remove();const text=copy.text().trim();if(text.length<18||text.length>300||/framework|Monday|Tuesday|business hours|^[0-9]/i.test(text))return;const title=text.split(/\s[:—]\s/)[0].replace(/^✓\s*/,''),[question,guide]=serviceGuidance(title);if(title.length>80||!/service|support|cloud|security|backup|network|compliance|managed|wifi|wi-fi|software|cabling|365|recovery|ai /i.test(title))return;
+    const existing=n.children('details').toString(),description=text.slice(text.indexOf(title)+title.length).replace(/^\s*[:—]\s*/, '');n.html(`<h3>${esc(title)}</h3>${description?'<p>'+esc(description)+'</p>':''}${existing}`);n.addClass('edition-service-card');n.parent('ul,ol').addClass('edition-service-list');
+    if(!n.find('.edition-guide').length)n.append(`<details class="edition-guide"><summary>Plan a useful conversation</summary><p><strong>${esc(question)}</strong></p><p>${esc(guide)}</p><a href="${base}#contact">Discuss ${esc(title.slice(0,60))} →</a></details>`);
+   });
    $('main article,main .chapter,main .tier').each((_,el)=>{const n=$(el);if(n.find('.edition-guide').length)return;const title=n.find('h2,h3').first().text();if(!title||/faq|questions|industries|contact/i.test(title))return;const [question,guide]=serviceGuidance(title);n.append(`<details class="edition-guide"><summary>What to clarify before starting</summary><p><strong>${esc(question)}</strong></p><p>${esc(guide)}</p><a href="${base}#contact">Talk through the scope →</a></details>`);});
+   $('main h3').each((_,el)=>{const n=$(el),title=n.text().trim(),topics=[[/health|medical/i,'patient-data systems, staff access, backup recovery and the HIPAA-related evidence your organization needs'],[/finance|financial/i,'payment systems, sensitive client records, access controls and business-continuity requirements'],[/nonprofit|non-profit|charity/i,'staff and volunteer access, donor records, licensing, shared devices and continuity within the available budget'],[/education|school/i,'student and staff accounts, classroom connectivity, shared devices, content access and procurement requirements'],[/government/i,'contract requirements, account permissions, records retention and the evidence needed for an assessment'],[/retail/i,'point-of-sale connectivity, store access, payment-system dependencies and outage procedures'],[/manufactur|construction|engineer/i,'site connectivity, specialist applications, remote access, equipment dependencies and maintenance windows']];const item=topics.find(([re])=>re.test(title));if(!item||title.length>60||n.parent().find('.edition-industry-guide').length)return;const p=n.next('p');if(p.length)p.after(`<details class="edition-guide edition-industry-guide"><summary>Prepare your industry brief</summary><p>Discuss ${esc(item[1])}. Bring your current setup and relevant contractual or regulatory requirements, then ask the team to confirm priorities, scope and ownership. Availability and any compliance outcome need to be confirmed directly.</p><a href="${base}#contact">Discuss your requirements →</a></details>`);});
   }
   page.body=$.html();
  }
- site.editorialVersion=1;
+ site.editorialVersion=2;
  site.contrastCorrections=[];site.fontSizeCorrections=[];site.readingGutterCorrections=[];
  }
- site.css=editorialCSS(d);
+ site.css=editorialCSS(d)+`.edition-service-list{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:36px 0}.edition-service-card{padding:28px;background:#fff;color:var(--ed-ink);margin:0;min-width:0;border-top:3px solid var(--ed-accent)}.edition-service-card p{font-size:16px;line-height:1.7}.edition-service-card h3{font:600 24px/1.2 "Space Grotesk",sans-serif;letter-spacing:-.035em}.edition-service-card details p{font-size:16px}.edition-header{flex-wrap:wrap}@media(max-width:600px){.edition-service-list{grid-template-columns:1fr}.edition-service-card{padding:24px}.edition-header>nav{width:100%;justify-content:flex-start}}`;
  site.responsiveFoundation=false;
  // The new composition has new selectors; do not carry geometry fixes from the old layout.
 }
