@@ -29,7 +29,7 @@ export function applyEditorialDesign(job,site,assets){
  if(!(job.imageUpgrade?.asset||job.editorialUpgrade))return;
  const hero=assets.find(a=>a.synthetic&&a.role==='hero');if(!hero)return;
  const d=editorialDirection(job),base='/p/'+job.token+'/';
- if(site.editorialVersion!==2){
+ if(site.editorialVersion!==3){
  for(const page of site.pages){
   const $=load(page.body,null,false);$('main').addClass('edition-main').attr('data-edition',d.mode);$('header').addClass('edition-header');$('footer').addClass('edition-footer');
   $('[style]').removeAttr('style');
@@ -41,7 +41,7 @@ export function applyEditorialDesign(job,site,assets){
    const lead=paragraphs.find(p=>p.length>75&&!/preview|demonstration/i.test(p))||job.profile.tagline;
    const originalCTA=old.find('a[href]').filter((i,a)=>!/mailto:|privacy|terms/i.test($(a).attr('href'))).first();
    const action=originalCTA.length?originalCTA.attr('href'):base+'#contact';
-   const label=originalCTA.length?originalCTA.text().trim():'Talk about your technology';
+   const label=originalCTA.length?originalCTA.text().trim().replace(/[↗→]+\\s*$/,''):'Talk about your technology';
    const kicker=page.slug==='services'?'Services & solutions':page.slug==='about'?'The people behind your technology':d.label;
    const extra=paragraphs.filter(p=>p!==lead&&p.length>75&&!/preview|demonstration/i.test(p));
    old.replaceWith(`<section class="edition-hero edition-${d.mode}"><div class="edition-copy"><p class="edition-eyebrow">${esc(kicker)}</p><h1>${esc(title)}</h1><p class="edition-lead">${esc(lead)}</p><div class="edition-actions"><a class="edition-primary" href="${esc(action)}">${esc(label.slice(0,64))}<span aria-hidden="true">↗</span></a><a class="edition-secondary" href="${base}${page.slug==='services'?'#contact':'services'}">${page.slug==='services'?'Discuss your needs':'Explore our services'} <span aria-hidden="true">→</span></a></div></div><figure class="edition-photo"><img src="${esc(hero.src)}" width="1536" height="1024" alt="${esc(hero.alt)}" fetchpriority="high" decoding="async"><figcaption>Technology in context · Illustrative imagery</figcaption></figure></section>${extra.length?`<section class="edition-context">${extra.map(p=>'<p>'+esc(p)+'</p>').join('')}</section>`:''}`);
@@ -54,7 +54,7 @@ export function applyEditorialDesign(job,site,assets){
   });
   if(page.slug==='services'){
    // Add service-specific decision help beside thin existing service descriptions.
-   $('main li').each((_,el)=>{const n=$(el);if(n.closest('nav,form,footer').length||n.find('li').length)return;const copy=n.clone();copy.find('details').remove();const text=copy.text().trim();if(text.length<18||text.length>300||/framework|Monday|Tuesday|business hours|^[0-9]/i.test(text))return;const title=text.split(/\s[:—]\s/)[0].replace(/^✓\s*/,''),[question,guide]=serviceGuidance(title);if(title.length>80||!/service|support|cloud|security|backup|network|compliance|managed|wifi|wi-fi|software|cabling|365|recovery|ai /i.test(title))return;
+   $('main li').each((_,el)=>{const n=$(el);if(n.closest('nav,form,footer').length||n.find('li').length)return;const copy=n.clone();copy.find('details').remove();const text=copy.text().trim();if(text.length<18||text.length>300||/framework|Monday|Tuesday|business hours|^[0-9]/i.test(text))return;const title=text.split(/\s*:\s*|\s+—\s+/)[0].replace(/^✓\s*/,''),[question,guide]=serviceGuidance(title);if(title.length>80||!/service|support|cloud|security|backup|network|compliance|managed|wifi|wi-fi|software|cabling|365|recovery|ai /i.test(title))return;
     const existing=n.children('details').toString(),description=text.slice(text.indexOf(title)+title.length).replace(/^\s*[:—]\s*/, '');n.html(`<h3>${esc(title)}</h3>${description?'<p>'+esc(description)+'</p>':''}${existing}`);n.addClass('edition-service-card');n.parent('ul,ol').addClass('edition-service-list');
     if(!n.find('.edition-guide').length)n.append(`<details class="edition-guide"><summary>Plan a useful conversation</summary><p><strong>${esc(question)}</strong></p><p>${esc(guide)}</p><a href="${base}#contact">Discuss ${esc(title.slice(0,60))} →</a></details>`);
    });
@@ -63,7 +63,7 @@ export function applyEditorialDesign(job,site,assets){
   }
   page.body=$.html();
  }
- site.editorialVersion=2;
+ site.editorialVersion=3;
  site.contrastCorrections=[];site.fontSizeCorrections=[];site.readingGutterCorrections=[];
  }
  site.css=editorialCSS(d)+`.edition-service-list{list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:36px 0}.edition-service-card{padding:28px;background:#fff;color:var(--ed-ink);margin:0;min-width:0;border-top:3px solid var(--ed-accent)}.edition-service-card p{font-size:16px;line-height:1.7}.edition-service-card h3{font:600 24px/1.2 "Space Grotesk",sans-serif;letter-spacing:-.035em}.edition-service-card details p{font-size:16px}.edition-header{flex-wrap:wrap}@media(max-width:600px){.edition-service-list{grid-template-columns:1fr}.edition-service-card{padding:24px}.edition-header>nav{width:100%;justify-content:flex-start}}`;
@@ -79,3 +79,4 @@ body{background:var(--ed-paper);color:var(--ed-ink);font:17px/1.65 Manrope,syste
 @media(max-width:900px){.edition-header{padding:16px 24px;gap:18px}.edition-header .navlinks{display:none}.edition-header details.menu{display:block}.edition-header .navcta{display:none}.edition-hero{padding:40px 28px;gap:32px;grid-template-columns:1fr}.edition-copy{display:block!important}.edition-landscape .edition-copy{display:block}.edition-landscape h1{max-width:16ch}.edition-actions{margin-top:24px!important}.edition-photo img,.edition-editorial .edition-photo img,.edition-landscape .edition-photo img{height:380px}.edition-poster .edition-photo img{min-height:0;height:380px}.edition-section{padding:52px 28px}.edition-section#contact,.edition-section.contact,.edition-section.ed-contact{padding:52px 28px}.edition-grid,.edition-context{gap:24px}.edition-header img{max-width:190px}.edition-header .brand b{font-size:14px}.edition-header>div{gap:18px}.edition-footer{padding:44px 28px;gap:32px}.edition-header .brand{max-width:75%}.edition-header .brand p{margin:0}}
 @media(max-width:600px){h1{font-size:46px;line-height:1.04}h2{font-size:34px}h3{font-size:25px}.edition-hero{padding:32px 22px;gap:28px}.edition-eyebrow{margin-bottom:20px;font-size:10px}.edition-lead{font-size:16px;line-height:1.65}.edition-editorial h1{font-size:50px}.edition-photo img,.edition-editorial .edition-photo img,.edition-landscape .edition-photo img,.edition-poster .edition-photo img{height:280px}.edition-actions{gap:18px}.edition-primary{font-size:13px;min-height:54px;padding:15px 18px}.edition-section{padding:44px 22px}.edition-section#contact,.edition-section.contact,.edition-section.ed-contact{padding:44px 22px}.edition-grid,.edition-context,.edition-section [class*=grid]:not(.edition-grid){grid-template-columns:1fr}.edition-header nav:not(.menu-panel){gap:16px;flex-wrap:wrap}.edition-header nav a{font-size:12px}.edition-header img{max-width:170px}.edition-header{padding:16px 22px}.studio-explorer [role=tablist]{grid-template-columns:1fr!important}.studio-explorer{padding:32px 8px!important}.edition-footer{padding:40px 22px}.edition-footer>div{min-width:140px}.edition-header .brand small{display:none}}
 `}
+
